@@ -1,6 +1,8 @@
-Black Coffee is a large integer and cryptography package written to support host-proof web
-applications.  It uses both Barrett and Montgomery reduction, as well as specialized 
+black-coffee
+============
 
+Black Coffee is a large integer and cryptography package written to support host-proof web
+applications.  
 
 Prior Art:
 
@@ -36,8 +38,3 @@ cryptographic utilities in additional files.
 
 Current Work
 
-The current work uses both Montgomery and Barrett reduction, includes specialized 
-  differences
-
-Comparisons
-  o

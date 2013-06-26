@@ -6,18 +6,16 @@ applications.
 
 ### Prior Art:
 
-#### Peter Olson's BigInteger.js
+#### Peter Olson's [BigInteger.js](git@github.com:peterolson/BigInteger.js.git)
 
-    git@github.com:peterolson/BigInteger.js.git
 
 While not cryptographically relevant due to the lack of an accelerated powmod operator, this
 library presents the basic structure of an arbitrary precision arithmetic package.
 
 Default radix: 1.0e7, uses about  24 bits per digit (log_2 1.0e7 = 23.25349666421154).
 
-#### Leemon Baird's BigInt.js
-
-    http://www.leemon.com/crypto/BigInt.js
+#### Leemon Baird's [BigInt.js](http://www.leemon.com/crypto/BigInt.js)
+    
 
 Uses Montgomery reduction to accelerate powmod.  Notable for having a method to select radix based
 on the underlying Javascript implementation, though the radix sizes are smaller than optimal.  It

@@ -1,0 +1,58 @@
+<html>
+<head>
+<script src="lib/BigInt.js"></script>
+
+<script src="lib/jsbn/jsbn.js"></script>
+<script src="lib/jsbn/jsbn2.js"></script>
+<script src="lib/jsbn/prng4.js"></script>
+<script src="lib/jsbn/rng.js"></script>
+<script src="lib/jsbn/rsa.js"></script>
+<script src="lib/jsbn/rsa2.js"></script>
+
+<!--
+Unrolled multipliers.
+<script src="math/mul.js"></script>
+<script src="math/mul-26-bit.js"></script>
+<script src="math/mul-28-bit.js"></script>
+<script src="math/mul-30-bit.js"></script>
+-->
+<script src="browser.js"></script>
+<script src="math/functions-26-bit.js"></script>
+<script src="math/functions-28-bit.js"></script>
+<script src="math/functions-30-bit.js"></script>
+<script src="math/long.js"></script>
+<script src="math/primes.js"></script>
+
+<!--
+Temporary removal
+<script src="math/ring.js"></script>
+-->
+<!--
+<script src="math/power-tree.js"></script>
+-->
+
+<script src="lib/jquery-1.8.2.min.js"></script>
+<script src="lib/highcharts.js"></script>
+
+<script src="compare.js"></script>
+<!-- Test scripts
+     
+<script src="math/test-functions-26-bit.js"></script>
+<script src="math/test-functions-28-bit.js"></script>
+<script src="math/test-functions-30-bit.js"></script>
+-->
+
+</head>
+<body>
+<div id="modular_exponentiation_fixed_odd_base_chart" style="width:600px; height:400px;"></div>
+<div id="multiplication_chart" style="width:600px; height:400px;"></div>
+<div id="modulus_chart" style="width:600px; height:400px;"></div>
+<div id="modular_exponentiation_fixed_exponent_chart" style="width:600px; height:400px;"></div>
+<!-- These charts are useful for tuning the KaratsubaLimit and KaratsubaSquareLimit
+     parameters, resp
+<div id="karatsuba_chart" style="width:600px; height:400px;"></div>
+<div id="ksquare_chart" style="width:600px; height:400px;"></div>
+<div id="modexp_method_chart" style="width:600px; height:400px;"></div>
+-->
+</body>
+</html>

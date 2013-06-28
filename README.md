@@ -1,10 +1,38 @@
 black-coffee
 ============
 
-Black Coffee is an unlimited-precision integer and cryptography package written to support host-proof web
-applications.  
 
-### Prior Art:
+Black Coffee is an unlimited-precision integer and cryptography package.  It is intended to ba a fundamental
+component of a framework to support NSA-proof web applications.  The algorithms are mostly based on The
+Handbook of Applied Cryptography (HAC), but also include a couple clever tricks from other authors.  The code
+is optimized for fast computation, but nonetheless generally has a small memory footprint.
+
+As of the end of June 2013, the integer portion is complete, tested, and mostly optimized.
+Unfortunately, Firefox seems to be the slowest of the major browsers, as the Tor Browser (based on
+Firefox) is a key platform target.  (Much of this work could be easily translated to C++ and
+encapsulated in an NPAPI plug-in.)  The prime finder is written but not yet optimized. The
+cryptography routines are not yet written.  RSA, SHA256/512, and one of the symmetric key
+algorithms will the first to be supported.
+
+Two other packages provided working examples of some of the algorithms in HAC: jsbn, a library
+written by Tom Wu, and BigInt by Leemon Baird.  They have significantly different approaches to
+some of the main problems -- which is in itself instructive -- and thereby provide assurance that
+consistency testing between the three will be an effective verification method.  This library is
+in some ways a hybrid of the two.  On the one hand it uses the same representation as BigInt --
+simply an Array instance -- but it uses the split-digit technique used in jsbn.  This library also
+makes several new developments: the computations are written as simple functions on strings of
+unsigned digits, while sign conventions, error checking, and parameter coercion are handled at an
+object layer, allowing a simple very representation of numbers for computation; the multiplication
+operation uses Karatsuba's technique to reduce the number of digit multiplications when operands
+are sufficiently large, changing the scaling factor from O(n^2) to O(n^1.65); modular
+exponentiation uses a Montgomery multiplier like BigInt and a sliding window technique like jsbn,
+but it adds a Montgomery square operator -- an adaptation of Montgomery multiplication (HAC 14.36)
+to multiple precision squaring (HAC 14.16).  The latter, in itself, provides a 17% reduction in
+running time on Safari.
+
+
+
+ ### Prior Art:
 
 #### Peter Olson's [BigInteger.js](git@github.com:peterolson/BigInteger.js.git)
 
@@ -35,3 +63,4 @@ cryptographic utilities in additional files.
 
 Current Work
 
+It is di

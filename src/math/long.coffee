@@ -49,11 +49,54 @@ class Long
       @sign = if x >= 0 then 1 else -1
 
   valueOf: () -> @sign * @_value @digits
+
+  codex = '0123456789abcdefghijklmnopqrstuvwxyz'
+  
   toString: (radix) ->
-    if radix is 16
-      (if @sign is -1 then '-' else '') + @_hex @digits
-    else
+    radix or= 10
+    if @msb() < 52
       @valueOf().toString radix
+      
+    else if radix is 16
+      (if @sign is -1 then '-' else '') + @_hex @digits
+      
+    else if radix in [2, 4, 8]
+      digits = Long._pack @digits, [0, 0, 1, 0, 2, 0, 0, 0, 3][radix], Long._radix
+      digits = [0] if digits.length is 0
+      (if @sign is -1 then '-' else '') + digits.reverse().join('')
+      
+    else
+      if not (2 <= radix <= 36)
+        throw new RangeError 'toString() radix argument must be between 2 and 36'
+        
+      digits = []
+      [q, r] = @_divmod @digits, [radix]
+      # use unsigned lt, since sign is handled
+      while @_lt [0], q
+        digits.push codex[r[0]]
+        [q, r] = @_divmod q, [radix]
+        
+      digits.push codex[r[0]]
+      (if @sign is -1 then '-' else '') + digits.reverse().join('')
+
+  
+  # the data type of Leemon Baird's BigInt.js
+  @fromBigInt: (x) -> new Long Long._pack x, Long._radix, bpe
+  toBigInt: () -> Long28._pack @digits, bpe
+
+    
+  # the data type of Tom Wu's jsbn.js
+  @fromBigInteger: (x) -> new Long Long._pack x, Long._radix, x.DB
+  toBigInteger: () ->
+    x = nbi()
+    digits = Long28._pack @digits, x.DB
+
+    x[i] = d for d, i in digits
+    x.s = 0
+    x.t = digits.length
+    x.clamp()
+    x
+
 
   negate: () ->
     z = new @Long this
@@ -126,7 +169,7 @@ class Long
 
       q.sign = x.sign * y.sign
 
-      if x.sign < 0 and (_size rs) > 0
+      if x.sign < 0 and (@_size rs) > 0
         r.digits = @_sub ys.slice(), rs
         @_add qs, [1]
 

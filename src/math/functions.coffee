@@ -86,9 +86,47 @@ _hex = do () ->
     chs.reverse().join ''
 
 
-# Packs the digits from __radix__ bits per digit to n bits per digit.
-# n must be less than or equal to 32.  The result is untrimmed and
-# may have leading zeros.
+# Packs the digits from k bits per digit to n bits per digit.  n and k must be less than or equal
+# to 32.  The result is untrimmed and may have leading zeros.  k is optional and defaults to
+# __radix__.
+_pack = (xs, n, k) ->
+  k or= __radix__
+  ys = []
+  bits = 0
+  acc = 0
+
+  mask = if n < 32 then (1 << n) - 1 else -1
+  i = 0
+  t = xs.length
+  while i < t
+    x = xs[i++]
+
+    acc |= x << bits
+    bits += k
+
+    if bits <= 32
+      extra = 0
+    else
+      extra = bits - 32
+      x >>>= k - extra
+      bits = 32
+
+    while bits >= n
+      ys.push acc & mask
+      bits -= n
+      acc >>>= n
+      acc &= (1 << bits) - 1
+
+    if extra > 0
+      acc |= x << bits
+      bits += extra
+
+  ys.push acc if bits > 0
+  ys
+
+  
+# Packs the digits from __radix__ bits per digit to n bits per digit.  n must be less than or
+# equal to 32.  The result is untrimmed and may have leading zeros.
 _repack = (xs, n) ->
   ys = []
   bits = 0
@@ -1398,6 +1436,7 @@ Functions =
   _mul:                     _mul
   _mulmod:                  _mulmod
   _mulMont:                 _mulMont
+  _pack:                    _pack
   _pow:                     _pow
   _powmod:                  _powmod
   _powMont:                 _powMont

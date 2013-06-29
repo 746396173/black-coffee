@@ -91,6 +91,10 @@ _hex = do () ->
 # __radix__.
 _pack = (xs, n, k) ->
   k or= __radix__
+
+  if n == k
+    return xs.slice()
+    
   ys = []
   bits = 0
   acc = 0
@@ -104,22 +108,22 @@ _pack = (xs, n, k) ->
     acc |= x << bits
     bits += k
 
-    if bits <= 32
-      extra = 0
-    else
-      extra = bits - 32
-      x >>>= k - extra
-      bits = 32
-
     while bits >= n
+      if bits <= 32
+        extra = 0
+      else
+        extra = bits - 32
+        x >>>= k - extra
+        bits = 32
+
       ys.push acc & mask
       bits -= n
       acc >>>= n
       acc &= (1 << bits) - 1
 
-    if extra > 0
-      acc |= x << bits
-      bits += extra
+      if extra > 0
+        acc |= x << bits
+        bits += extra
 
   ys.push acc if bits > 0
   ys

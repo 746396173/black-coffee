@@ -32,7 +32,7 @@ class Long
 
   constructor: (x) ->
     if x instanceof Long
-      @digits = x.digits.slice()
+      @digits = @_pack x.digits, @_radix, x._radix
       @sign = x.sign
 
     else if x instanceof Array

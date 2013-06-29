@@ -129,43 +129,6 @@ _pack = (xs, n, k) ->
   ys
 
   
-# Packs the digits from __radix__ bits per digit to n bits per digit.  n must be less than or
-# equal to 32.  The result is untrimmed and may have leading zeros.
-_repack = (xs, n) ->
-  ys = []
-  bits = 0
-  acc = 0
-
-  mask = if n < 32 then (1 << n) - 1 else -1
-  i = 0
-  t = _size xs
-  while i < t
-    x_i = xs[i++]
-
-    for x in [x_i & __demimask__, x_i >>> __demiradix__]
-      acc |= x << bits
-      bits += __demiradix__
-
-      if bits <= 32
-        extra = 0
-      else
-        extra = bits - 32
-        x >>>= __demiradix__ - extra
-        bits = 32
-
-      while bits >= n
-        ys.push acc & mask
-        bits -= n
-        acc >>>= n
-        acc &= (1 << bits) - 1
-
-      if extra > 0
-        acc |= x << bits
-        bits += extra
-
-  ys.push acc if bits > 0
-  ys
-
 _random = (bits) ->
   xs = []
   while bits > __radix__
@@ -1447,7 +1410,6 @@ Functions =
   _radix:                   __radix__
   _random:                  _random
   _reduceMont:              _reduceMont
-  _repack:                  _repack
   _repr:                    _repr
   _shl:                     _shl
   _shr:                     _shr

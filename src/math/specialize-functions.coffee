@@ -4,23 +4,28 @@ pow = Math.pow
 
 lines = (String fs.readFileSync 'functions.coffee').split '\n'
 
-for radix in [26, 28, 30]
-  base = 1 << radix
-  demiradix = radix >> 1
-  demibase = 1 << demiradix
+for width in [14, 15, 26, 28, 29, 30]
+  base = 1 << width
+  half_widthA = width >> 1
+  half_baseA  = 1 << half_widthA
+  half_widthB = width - half_widthA
+  half_baseB  = 1 << half_widthB
 
   codex =
-    radix:     String radix
-    base:      '0x' + base.toString 16
-    base2:     '0x' + (pow base, 2).toString 16
-    mask:      '0x' + (base - 1).toString 16
-    demiradix: String demiradix
-    demibase:  '0x' + demibase.toString 16
-    demimask:  '0x' + (demibase - 1).toString 16
+    width:      String width
+    base:       '0x' + base.toString 16
+    base2:      '0x' + (pow base, 2).toString 16
+    mask:       '0x' + (base - 1).toString 16
+    half_widthA: String half_widthA
+    half_baseA:  '0x' + half_baseA.toString 16
+    half_maskA:  '0x' + (half_baseA - 1).toString 16
+    half_widthB: String half_widthB
+    half_baseB:  '0x' + half_baseB.toString 16
+    half_maskB:  '0x' + (half_baseB - 1).toString 16
 
   skipRE   = /%% Begin Remove for Specialize %%/
   unskipRE = /%% End Remove for Specialize %%/
-  targetRE = /__(radix|base|base2|mask|demiradix|demibase|demimask)__/g
+  targetRE = /__(width|base|base2|mask|half_widthA|half_baseA|half_maskA|half_widthB|half_baseB|half_maskB)__/g
   result = []
   skip = false
   for x in lines
@@ -29,4 +34,4 @@ for radix in [26, 28, 30]
     else if not skip
       result.push x.replace targetRE, (match, keyword) -> codex[keyword]
 
-  fs.writeFileSync 'functions-' + radix + '-bit.coffee', result.join '\n'
+  fs.writeFileSync 'functions-' + width + '-bit.coffee', result.join '\n'

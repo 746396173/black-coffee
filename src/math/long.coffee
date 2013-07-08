@@ -28,11 +28,11 @@ class Long
 
   Long:       Long
 
-  @random: (bits) -> new Long @_random bits
+  @random: (bits) -> new this @_random bits
 
   constructor: (x) ->
     if x instanceof Long
-      @digits = @_pack x.digits, x._radix
+      @digits = @_pack x.digits, @_width, x._width
       @sign = x.sign
 
     else if x instanceof Array
@@ -40,12 +40,12 @@ class Long
       @sign = 1
 
     else if x instanceof String or typeof x is 'string'
-      @digits = @_repr x
+      @digits = @_parseHex x
       @sign = 1
 
     else
       x = (Number x) or 0
-      @digits = @_repr x.toString 16
+      @digits = @_parseHex x.toString 16
       @sign = if x >= 0 then 1 else -1
 
   valueOf: () -> @sign * @_value @digits
@@ -57,13 +57,10 @@ class Long
     if @msb() < 52
       @valueOf().toString radix
       
-    else if radix is 16
-      (if @sign is -1 then '-' else '') + @_hex @digits
-      
-    else if radix in [2, 4, 8]
-      digits = Long._pack @digits, [0, 0, 1, 0, 2, 0, 0, 0, 3][radix], Long._radix
+    else if radix in [2, 4, 8, 16]
+      digits = @_trim @_pack @digits, { 2: 1, 4: 2, 8: 3, 16: 4 }[radix]
       digits = [0] if digits.length is 0
-      (if @sign is -1 then '-' else '') + digits.reverse().join('')
+      (if @sign is -1 then '-' else '') + (codex[d] for d in digits).reverse().join('')
       
     else
       if not (2 <= radix <= 36)
@@ -81,15 +78,19 @@ class Long
 
   
   # the data type of Leemon Baird's BigInt.js
-  @fromBigInt: (x) -> new Long Long._pack x, Long._radix, bpe
-  toBigInt: () -> Long28._pack @digits, bpe
+  @fromBigInt: (x) -> new this @_pack x, @_width, bpe
+  toBigInt: () -> @Long._pack @digits, bpe
 
     
   # the data type of Tom Wu's jsbn.js
-  @fromBigInteger: (x) -> new Long Long._pack x, Long._radix, x.DB
+  @fromBigInteger: (x) ->
+    x.length = x.t
+    new this @_pack ([].slice.apply x), @_width, x.DB
+
+    
   toBigInteger: () ->
     x = nbi()
-    digits = Long28._pack @digits, x.DB
+    digits = @Long._pack @digits, x.DB
 
     x[i] = d for d, i in digits
     x.s = 0
@@ -139,14 +140,14 @@ class Long
     y = new @Long y if not (y instanceof Long)
     z = new @Long
 
-    z.digits = @_kmul x.digits, y.digits
+    z.digits = @_mul x.digits, y.digits
     z.sign = if (@_size z.digits) is 0 then 1 else x.sign * y.sign
 
     z
 
   divmod: (y) ->
     x = this
-    y = new @Long y if not (y instanceof Long)
+    y = new @Long y if not (y instanceof @Long)
 
     xs = x.digits
     ys = y.digits
@@ -301,13 +302,13 @@ class Long
 
 
   sq: () ->
-    new Long @_sq @digits
+    new @Long @_sq @digits
 
 
   sqmod: (m) ->
-    m = new @Long m if not (m instanceof Long)
+    m = new @Long m if not (m instanceof @Long)
     
-    new Long @_sqmod @digits, m.digits
+    new @Long @_sqmod @digits, m.digits
 
 
   pow: (y) ->
@@ -320,8 +321,8 @@ class Long
     z
 
   mulmod: (y, m) ->
-    y = new @Long y if not (y instanceof Long)
-    m = new @Long m if not (m instanceof Long)
+    y = new @Long y if not (y instanceof @Long)
+    m = new @Long m if not (m instanceof @Long)
 
     zs = @_mulmod @digits, y.digits, m.digits
     if @sign * y.sign < 0 and @_size zs > 0
@@ -330,8 +331,8 @@ class Long
     new @Long zs
 
   powmod: (y, m) ->
-    y = new @Long y if not (y instanceof Long)
-    m = new @Long m if not (m instanceof Long)
+    y = new @Long y if not (y instanceof @Long)
+    m = new @Long m if not (m instanceof @Long)
 
     if m.eq [0]
       new @Long [1]
@@ -366,29 +367,125 @@ class Long
     z.sign = @sign
     z
 
+  cofactorMont: () ->
+    # sign? ... this should always be positive?
+    @_cofactorMont @digits
+    
+  liftMont: (y) ->
+    # sign?
+    y = new @Long y if not (y instanceof @Long)
+    new @Long @_liftMont y.digits, @digits
+
 
 class Long26 extends Long
   Long: Long26
     
+class Long14 extends Long
+  Long: Long14
+    
+class Long15 extends Long
+  Long: Long15
+    
 class Long28 extends Long
   Long: Long28
+  
+class Long29 extends Long
+  Long: Long29
   
 class Long30 extends Long
   Long: Long30
 
-if Browser.name is 'Chrome'
-  Long.initializeFunctions Functions28
-else
+if Browser.name is 'Safari'
   Long.initializeFunctions Functions30
+else
+  Long.initializeFunctions Functions29
   
+Long14.initializeFunctions Functions14
+Long15.initializeFunctions Functions15
 Long26.initializeFunctions Functions26
 Long28.initializeFunctions Functions28
+Long29.initializeFunctions Functions29
 Long30.initializeFunctions Functions30
 
+class RingResidue extends Long
+  Long: RingResidue
+  
+  constructor: (x) ->
+    super x
+
+  reduce: () ->
+    if (@lt [0]) or not @lt @m
+      @digits = (@mod @m).digits
+    this
+
+  add: (y) ->
+    super y
+    @reduce()
+
+  sub: (y) ->
+    super y
+    @reduce()
+
+  mul: (y) ->
+    y = new @Long y if not (y instanceof @Long)
+    super y.reduce()
+    @reduce()
+
+  eq: (y) ->
+    y = new @Long y if not (y instanceof @Long)
+    super y.reduce()    
+
+  lt: (y) ->
+    y = new @Long y if not (y instanceof @Long)
+    super y.reduce()
+    
+  sq: () ->
+    super()
+    @reduce()
+
+  pow: (y) ->
+    super y
+    @reduce()
+    
+
+class MontgomeryResidue extends RingResidue
+  negate: () ->
+  
+  lift: () ->
+    @digits = (@m.liftMont this).digits
+    this
+  
+  reduce: () ->
+    @digits = @_reduceMont @digits, @m.digits, @W
+    this
+
+  
+    
+class QuotientRing extends Long
+  constructor: (m) ->
+    if m.bit 0
+      return class Residue extends MontgomeryResidue
+        @prototype.m = m
+        @prototype.W = m.cofactorMont()
+        @prototype.one = m.liftMont [1]
+        @prototype.t = m.msb()
+        
 exports = exports or window
 
-exports.Long = Long
+defaultLong =
+  Chrome:  Long29
+  Firefox: Long29
+  Opera:   Long28
+  Safari:  Long30
+
+exports.Long = defaultLong[Browser.name] or Long28
+
+exports.Long14 = Long14
+exports.Long15 = Long15
 exports.Long26 = Long26
 exports.Long28 = Long28
+exports.Long29 = Long29
 exports.Long30 = Long30
-
+exports.RingResidue = RingResidue
+exports.MontgomeryResidue = MontgomeryResidue
+exports.QuotientRing = QuotientRing

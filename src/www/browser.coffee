@@ -85,7 +85,7 @@ OSAssay = [
     datum: navigator.platform
     pattern: 'Win'
   ,
-    name: 'Mac'
+    name: 'OS/X'
     datum: navigator.platform
     pattern: 'Mac'
   ,

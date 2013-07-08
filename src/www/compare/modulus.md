@@ -1,0 +1,126 @@
+<html>
+<head>
+<script src="../lib/BigInt.js"></script>
+
+<script src="../lib/jsbn/jsbn.js"></script>
+<script src="../lib/jsbn/jsbn2.js"></script>
+<script src="../lib/jsbn/prng4.js"></script>
+<script src="../lib/jsbn/rng.js"></script>
+
+<script src="../browser.js"></script>
+<script src="../math/functions-14-bit.js"></script>
+<script src="../math/functions-15-bit.js"></script>
+<script src="../math/functions-26-bit.js"></script>
+<script src="../math/functions-28-bit.js"></script>
+<script src="../math/functions-29-bit.js"></script>
+<script src="../math/functions-30-bit.js"></script>
+<script src="../math/long.js"></script>
+
+
+<script src="../lib/jquery-1.8.2.min.js"></script>
+<script src="../lib/highcharts.js"></script>
+
+<script src="charts.js"></script>
+<script src="modulus.js"></script>
+
+<style type="text/css">
+body {
+  font-family: "Lucida Grande", "Lucida Sans Unicode", Verdana, Arial, Helvetica, sans-serif;
+}
+
+h1, p {
+  margin-left: 100px;
+  width: 1024px;
+}
+
+pre {
+  margin-left: 155px;
+}
+
+.chart {
+  margin-left: 210px;
+  width: 805px;
+  height: 500px;
+  border: 1px solid gray;
+  display: none;
+}
+
+.spinner {
+  position: relative;
+  left: 369px;
+  top: 217px;
+}
+
+div.codehilite pre span.c1 {
+  color: blue;
+}
+
+.consistency_failure {
+  border: 2px solid red;
+}
+
+.link {
+  color: #3050e0;
+  cursor: hand;
+  text-decoration: underline;
+  font-style: italic;
+}
+
+p .margin_centered {
+  align: center;
+}
+
+.consistency_error {
+  font-weight: bold;
+  display: none;
+}
+
+</style>
+</head>
+<body> 
+
+Modulus
+=======
+
+
+<p>
+  <div id="modulus_group">
+    <p>
+      <span class="link">
+	Compute and show chart comparing running time of ordinary multiplication by BigInt, jsbn,
+	and Long.
+      </span>
+      <span class="consistency_error">
+	Computation halted: inconsistent results in comparison.  View console for details.
+      </span>
+    </p>
+    <div class="chart">
+    </div>
+  </div>
+</p>
+
+<p>
+  <div id="digit_size_group">
+    <p>
+      <span class="link">
+	Compute and show chart comparing running time of ordinary multiplication by Longs with various
+	digit sizes.
+      </span>
+      <span class="consistency_error">
+	Computation halted: inconsistent results in comparison.  View console for details.
+      </span>
+    </p>
+    <div class="chart">
+    </div>
+  </div>
+</p>
+
+
+</body>
+</html>
+
+<!--
+Local Variables:
+mode: html
+end:
+--->

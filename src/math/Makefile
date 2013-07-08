@@ -1,4 +1,5 @@
-all: functions-26-bit.js functions-28-bit.js functions-30-bit.js long.js \
+all: functions-26-bit.js functions-28-bit.js functions-29-bit.js \
+	functions-30-bit.js long.js \
 	primes.js ring.js ring-26-bit.js ring-28-bit.js ring-30-bit.js rsa.js power-tree.js \
 	test-functions-26-bit.js test-functions-28-bit.js test-functions-30-bit.js
 #	mul.js mul-26-bit.js mul-28-bit.js mul-30-bit.js \
@@ -9,7 +10,8 @@ clean:
 %.js: %.coffee
 	coffee -c $<
 
-functions-26-bit.coffee functions-28-bit.coffee functions-30-bit.coffee: functions.coffee specialize-functions.coffee
+functions-26-bit.coffee \
+functions-28-bit.coffee functions-29-bit.coffee functions-30-bit.coffee: functions.coffee specialize-functions.coffee
 	coffee specialize-functions.coffee
 
 #mul.coffee: mul-prefix.coffee make-mul.coffee

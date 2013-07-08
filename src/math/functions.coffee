@@ -1,48 +1,50 @@
 exports = exports or window
 
+# Mainly used to add a set of specialized functions to a Long subclass, creating a Long
+# specialized to a specific digit bit width.
+# 
 install = (obj) ->
   obj or= window
-  for name, x of Functions__radix__ when name isnt 'install'
+  for name, x of Functions__width__ when name isnt 'install'
     obj[name] = x
   null
     
-{ max, min, pow, random } = Math
-
-_mantissa = do () ->
-  c = 0
-  while (pow 2, c) != 1 + pow 2, c then c++
-  c
-
-_width = do () ->
-  c = 0                               # This determines the maximum size of an integer which can
-  while ~~(pow 2, c) then c++         # be reliably manipulated with bitwise operations.
-  c
+{ ceil, max, min, pow, random } = Math
 
 ## %% Begin Remove for Specialize %%
-__radix__  = 28
-__base__   = 1 << __radix__
-__base2__  = pow __base__, 2
+#
+# These ubiquitous and constant variables are replaced with literals by specialize-functions.
+# This creates separate files for each digit bit width, thereby allowing the compiler to create
+# faster code by both removing the dereference and by reducing the size of the namespaces to be
+# searched.
+
+__width__  = 28
+__base__   = 1 << __width__
 __mask__   = __base__ - 1
 
-__demiradix__ = __radix__ >>> 1
-__demibase__  = 1 << __demiradix__
-__demimask__  = __demibase__ - 1
-
-_setRadix = (radix) ->
-  __radix__  = radix
-  __base__   = 1 << __radix__
-  __base2__  = pow __base__, 2
-  __mask__   = __base__ - 1
-
-  __demiradix__ = __radix__ >>> 1
-  __demibase__  = 1 << __demiradix__
-  __demimask__  = __demibase__ - 1
+__half_widthA__ = __width__ >>> 1
+__half_baseA__  = 1 << __half_widthA__
+__half_maskA__  = __half_baseA__ - 1
+__half_widthB__ = __width__ - __half_widthA__
+__half_baseB__  = 1 << __half_widthB__
+__half_maskB__  = __half_baseB__ - 1
 
 ## %% End Remove for Specialize %%
 
+# Uint8Array automatically initializes to zero, unlike Array, which contains undefined.
 _zeros = [].slice.call new Uint8Array 10240
 
-_repr = do () ->
+# On all browsers but Firefox _empty.slice 0, k is a fast way to initialize and array to zeros.
+# This is particularly important for speed on Chrome.  Firefox seems to have a very slow slice
+# method, so we use other means (bitwise casting -- xs[i]|0).
+#
+if Browser.name is 'Firefox'
+  _empty = []
+else
+  _empty = _zeros
+
+# Convert hexidecimal to a digit array.
+_parseHex = do () ->
   codex = []
   codex[i.toString 16] = i for i in [0...16]
 
@@ -55,42 +57,20 @@ _repr = do () ->
       x = codex[hex[i]] or 0
       acc |= x << bits
       bits += 4
-      if bits >= __radix__
+      if bits >= __width__
         zs.push acc & __mask__
-        acc >>>= __radix__
-        bits -= __radix__
+        acc >>>= __width__
+        bits -= __width__
 
     zs.push acc if bits > 0
     zs
 
-_hex = do () ->
-  codex = (i.toString(16) for i in [0...16])
-
-  (xs) ->
-    chs = []
-    bits = 0
-    acc = 0
-
-    for i in [0..._size xs] by 1
-      for x in [xs[i] & __demimask__, xs[i] >>> __demiradix__]
-        acc |= x << bits
-        bits += __demiradix__
-        while bits >= 4
-          chs.push codex[acc & 0xf]
-          acc >>>= 4
-          bits -= 4
-
-    chs.push codex[acc] if bits > 0
-    while chs[chs.length-1] is '0' then chs.pop()
-    chs = ['0'] if chs.length == 0
-    chs.reverse().join ''
-
 
 # Packs the digits from k bits per digit to n bits per digit.  n and k must be less than or equal
 # to 32.  The result is untrimmed and may have leading zeros.  k is optional and defaults to
-# __radix__.
+# __width__.
 _pack = (xs, n, k) ->
-  k or= __radix__
+  k or= __width__
 
   if n == k
     return xs.slice()
@@ -131,9 +111,9 @@ _pack = (xs, n, k) ->
   
 _random = (bits) ->
   xs = []
-  while bits > __radix__
+  while bits > __width__
     xs.push __base__ * random() & __mask__
-    bits -= __radix__
+    bits -= __width__
 
   if bits > 0
     xs.push __base__ * random() & ((1 << bits) - 1)
@@ -144,7 +124,7 @@ _random = (bits) ->
 _value = (xs) ->
   k = 0
   for i in [xs.length-1..0] by -1
-    k = __base__ * k + (xs[i] & -1)
+    k = __base__ * k + (xs[i] & __mask__)
   k
 
 
@@ -152,7 +132,7 @@ _value = (xs) ->
 
 _size = (xs) ->
   i = xs.length-1
-  while (xs[i] & -1) is 0 and i >= 0 then i--
+  while (xs[i] & __mask__) is 0 and i >= 0 then i--
   i+1
 
 
@@ -180,8 +160,8 @@ _shr = (xs, k) ->
 # about their arguments (in terms of index validity and the lack of boundary checking).
 
 _bitset = (xs, k, v) ->
-  j = k % __radix__
-  i = (k - j)/__radix__
+  j = k % __width__
+  i = (k - j)/__width__
   if not v? or v
     xs[i] |= 1 << j
   else
@@ -189,22 +169,22 @@ _bitset = (xs, k, v) ->
 
 
 _bit = (xs, k) ->
-  j = k % __radix__
-  i = (k - j)/__radix__
+  j = k % __width__
+  i = (k - j)/__width__
   xs[i] >>> j & 1
 
 
 _bits = (xs, k) ->
-  b = k % __radix__
-  j = (k - b)/__radix__
-  d =  __radix__ - b
-  xs[j] >>> b & (1 << d) - 1 | xs[j+1] << d | xs[j+2] << d + __radix__
+  b = k % __width__
+  j = (k - b)/__width__
+  d =  __width__ - b
+  xs[j] >>> b & (1 << d) - 1 | xs[j+1] << d | xs[j+2] << d + __width__
 
 
 _bitcount = (xs) ->
   c = 0
   i = 0
-  n = xs.length * __radix__
+  n = xs.length * __width__
   # TODO optimized _bit out
   while i < n
     if _bit xs, i++
@@ -214,7 +194,7 @@ _bitcount = (xs) ->
 _msb = do (_size) ->
   (xs) ->
     k = (_size xs) - 1
-    j = __radix__
+    j = __width__
     if k == -1
       -1
     else
@@ -222,17 +202,17 @@ _msb = do (_size) ->
 
       while --j >= 0 and not (x_k & 1 << j) then null
 
-      j + k * __radix__
+      j + k * __width__
 
 _bshl = do (_shl) ->
   (xs, k) ->
-    b = k % __radix__
-    j = (k - b)/__radix__ #
+    b = k % __width__
+    j = (k - b)/__width__ #
 
     _shl xs, j if j > 0
 
     b_l = b
-    b_r = __radix__ - b_l
+    b_r = __width__ - b_l
 
     mask_l = (1 << b_r) - 1
     mask_h = ~mask_l
@@ -253,13 +233,13 @@ _bshl = do (_shl) ->
 
 _bshr = do (_shr) ->
   (xs, k) ->
-    b = k % __radix__
-    j = (k - b)/__radix__
+    b = k % __width__
+    j = (k - b)/__width__
 
     _shr xs, j if j > 0
 
     b_r = b
-    b_l = __radix__ - b_r
+    b_l = __width__ - b_r
 
     mask_l = (1 << b_r) - 1
     mask_h = ~mask_l
@@ -289,8 +269,8 @@ _bpart = (xs, n) ->
   mask = (1 << n) - 1
   
   t = _msb xs
-  i = t % __radix__
-  k = t/__radix__ & -1
+  i = t % __width__
+  k = t/__width__ & -1
   x_k = xs[k]
 
   parts = []
@@ -304,7 +284,7 @@ _bpart = (xs, n) ->
       j = i + 1 - n
       if j < 0
         if k > 0
-          a = (x_k << -j | xs[k-1] >>> __radix__ + j) & mask
+          a = (x_k << -j | xs[k-1] >>> __width__ + j) & mask
         else
           a = x_k & (mask >>> -j)
           j = 0
@@ -321,7 +301,7 @@ _bpart = (xs, n) ->
     if i < 0
       if k > 0
         x_k = xs[--k]
-        i += __radix__
+        i += __width__
 
   parts
 
@@ -356,12 +336,12 @@ _add = (xs, ys, k) ->
   n = ys.length + k
   while i < n
     z_i = (xs[i] & -1) + (ys[i-k] & -1) + c
-    c = z_i >>> __radix__
+    c = z_i >>> __width__
     zs[i++] = z_i & __mask__
 
   while c
     z_i = (xs[i] & -1) + c
-    c = z_i >>> __radix__
+    c = z_i >>> __width__
     zs[i] = z_i & __mask__
     i++
 
@@ -371,7 +351,7 @@ _add = (xs, ys, k) ->
 __add = (xs, j, ys, i, c, n) ->
   while --n >= 0
     w = ys[i++] + xs[j] + c
-    c = w >>> __radix__
+    c = w >>> __width__
     xs[j++] = w & __mask__
 
   c
@@ -411,130 +391,216 @@ _sub = (xs, ys, k) ->
 # 30 bit wide digits can overlow 32 bits of available logic in the computation of the function
 # in the else clause; adding mask and shift of the carry is enough to avoid the problem.  The
 # result is slightly slower per digit.
-# 
-if __radix__ <= 28
-  __addmul = (xs, j, t, ys, i, c, n) ->
-    t_l = t & __demimask__
-    t_h = t >>> __demiradix__
-    while --n >= 0
-      y_l = ys[i] & __demimask__
-      y_h = ys[i++] >>> __demiradix__
-      m = t_h * y_l + y_h * t_l
-      l = t_l * y_l + ((m & __demimask__) << __demiradix__) + xs[j] + c
-      c = (l >>> __radix__) + (m >>> __demiradix__) + t_h * y_h
-      xs[j++] = l & __mask__
+#
 
-    c
+# adder-multipliers  xs[j...j+n] += t * ys[i...i+n] + c
+# returns final carry
 
+# Use with digits <= 15 bits wide
+__addmulSmallDigit = (xs, j, t, ys, i, c, n) ->
+  while --n >= 0
+    x_j = (xs[j]|0) + t * (ys[i++]|0) + c
+    c = x_j >>> __width__
+    xs[j++] = x_j & __mask__
 
-  _mul1 = (xs, y) ->
-    y_l = y & __demimask__
-    y_h = y >>> __demiradix__
+  c
 
-    zs = [0]
-    n_xs = xs.length
-    if n_xs > 0
-      j = 0
-      while j < n_xs
-        x_l = xs[j] & __demimask__
-        x_h = xs[j] >>> __demiradix__
-        c = 0
-        k = j
+# Use with digits of even width > 15 bits   
+__addmulEvenLargeDigit = (xs, j, t, ys, i, c, n) ->
+  t_l = t & __half_maskA__
+  t_h = t >>> __half_widthA__
+  while --n >= 0
+    y_l = ys[i] & __half_maskA__
+    y_h = ys[i++] >>> __half_widthA__
+    m = t_h * y_l + y_h * t_l
+    l = t_l * y_l + ((m & __half_maskA__) << __half_widthA__) + (xs[j]|0) + c
+    c = (l >>> __width__) + (m >>> __half_widthA__) + t_h * y_h
+    xs[j++] = l & __mask__
 
-        m = x_h*y_l + y_h*x_l
-        z_j = x_l*y_l + ((m & __demimask__) << __demiradix__) + c
-        c = (z_j >>> __radix__) + (m >>> __demiradix__) + x_h*y_h
+  c
+
+# Use with digits of odd width > 15 bits   
+__addmulOddLargeDigit = (xs, j, t, ys, i, c, n) ->
+  t_l = t & __half_maskA__
+  t_h = t >>> __half_widthA__
+  while --n >= 0
+    y_l = ys[i] & __half_maskB__
+    y_h = ys[i++] >>> __half_widthB__
+    m = t_h * y_l + (y_h * t_l << 1)
+    l = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + c
+    c = (l >>> __width__) + (m >>> __half_widthB__) + t_h * y_h
+    xs[j++] = l & __mask__
+
+  c
+
+# Use with digits of even width > 15 bits
+__addmulEvenWithCarryMask = (xs, j, t, ys, i, c, n) ->
+  t_l = t & __half_maskA__
+  t_h = t >>> __half_widthA__
+  while --n >= 0
+    y_l = ys[i] & __half_maskA__
+    y_h = ys[i++] >>> __half_widthA__
+    m = t_h * y_l + y_h * t_l
+    l = t_l * y_l + ((m & __half_maskA__) << __half_widthA__) + (xs[j]|0) + (c & __mask__)
+    c = (l >>> __width__) + (m >>> __half_widthA__) + t_h * y_h + (c >>> __width__)
+    xs[j++] = l & __mask__
+
+  c
+
+# Use with digits of odd width > 15 bits
+__addmulOddWithCarryMask = (xs, j, t, ys, i, c, n) ->
+  t_l = t & __half_maskA__
+  t_h = t >>> __half_widthA__
+  while --n >= 0
+    y_l = ys[i] & __half_maskB__
+    y_h = ys[i++] >>> __half_widthB__
+    m = t_h * y_l + (y_h * t_l << 1)
+    l = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + (c & __mask__)
+    c = (l >>> __width__) + (m >>> __half_widthB__) + t_h * y_h + (c >>> __width__)
+    xs[j++] = l & __mask__
+
+  c
+
+_mulSmallDigit = (xs, ys) ->
+  n_xs = xs.length
+  n_ys = ys.length
+
+  zs = _empty.slice 0, n_xs + n_ys
+
+  if n_xs > 0 and n_ys > 0
+    for j in [0...n_xs] by 1
+      x_j = xs[j] & __mask__
+      i = c = 0
+      k = j
+      n = n_ys
+      while --n >= 0
+        z_j = (zs[j]|0) + x_j * ys[i++] + c
+        c = z_j >>> __width__
         zs[j++] = z_j & __mask__
-
       zs[j] = c
-    zs
+  _trim zs
 
+_mulEvenLargeDigit = (xs, ys) ->
+  n_xs = xs.length
+  n_ys = ys.length
 
-  _mul = (xs, ys) ->
-    n_xs = xs.length
-    n_ys = ys.length
+  zs = _empty.slice 0, n_xs + n_ys
 
-    zs = _zeros.slice 0, n_xs + n_ys
-
-    if n_xs > 0 and n_ys > 0
-      for j in [0...n_xs] by 1
-        x_l = xs[j] & __demimask__
-        x_h = xs[j] >>> __demiradix__
-        i = c = 0
-        k = j
-        n = n_ys
-        while --n >= 0
-          yl_i = ys[i] & __demimask__
-          yh_i = ys[i++] >>> __demiradix__
-          m = x_h*yl_i + yh_i*x_l
-          z_j = zs[j] + x_l*yl_i + ((m & __demimask__) << __demiradix__) + c
-          c = (z_j >>> __radix__) + (m >>> __demiradix__) + x_h*yh_i
-          zs[j++] = z_j & __mask__
-        zs[j] = c
-    _trim zs
-    
-else
-  __addmul = (xs, j, t, ys, i, c, n) ->
-    t_l = t & __demimask__
-    t_h = t >>> __demiradix__
-    while --n >= 0
-      y_l = ys[i] & __demimask__
-      y_h = ys[i++] >>> __demiradix__
-      m = t_h * y_l + y_h * t_l
-      l = t_l * y_l + ((m & __demimask__) << __demiradix__) + xs[j] + (c & __mask__)
-      c = (l >>> __radix__) + (m >>> __demiradix__) + t_h * y_h + (c >>> __radix__)
-      xs[j++] = l & __mask__
-
-    c
-
-
-  _mul1 = (xs, y) ->
-    y_l = y & __demimask__
-    y_h = y >>> __demiradix__
-
-    zs = [0]
-    n_xs = xs.length
-    if n_xs > 0
-      j = 0
-      while j < n_xs
-        x_l = xs[j] & __demimask__
-        x_h = xs[j] >>> __demiradix__
-        c = 0
-        k = j
-
-        m = x_h*y_l + y_h*x_l
-        z_j = x_l*y_l + ((m & __demimask__) << __demiradix__) + (c & __mask__)
-        c = (z_j >>> __radix__) + (m >>> __demiradix__) + x_h*y_h + (c >>> __radix__)
+  if n_xs > 0 and n_ys > 0
+    for j in [0...n_xs] by 1
+      x_l = xs[j] & __half_maskA__
+      x_h = xs[j] >>> __half_widthA__
+      i = c = 0
+      k = j
+      n = n_ys
+      while --n >= 0
+        yl_i = ys[i] & __half_maskA__
+        yh_i = ys[i++] >>> __half_widthA__
+        m = x_h*yl_i + yh_i*x_l
+        z_j = (zs[j]|0) + x_l*yl_i + ((m & __half_maskA__) << __half_widthA__) + c
+        c = (z_j >>> __width__) + (m >>> __half_widthA__) + x_h*yh_i
         zs[j++] = z_j & __mask__
-
-      zs[j] = c if c
-    zs
-
-
-  _mul = (xs, ys) ->
-    n_xs = xs.length
-    n_ys = ys.length
-
-    zs = _zeros.slice 0, n_xs + n_ys
-
-    if n_xs > 0 and n_ys > 0
-      for j in [0...n_xs] by 1
-        x_l = xs[j] & __demimask__
-        x_h = xs[j] >>> __demiradix__
-        i = c = 0
-        k = j
-        n = n_ys
-        while --n >= 0
-          yl_i = ys[i] & __demimask__
-          yh_i = ys[i++] >>> __demiradix__
-          m = x_h*yl_i + yh_i*x_l
-          z_j = zs[j] + x_l*yl_i + ((m & __demimask__) << __demiradix__) + (c & __mask__)
-          c = (z_j >>> __radix__) + (m >>> __demiradix__) + x_h*yh_i + (c >>> __radix__)
-          zs[j++] = z_j & __mask__
-        zs[j] = c
-    _trim zs
+      zs[j] = c
+  _trim zs
 
 
+_mulOddLargeDigit = (xs, ys) ->
+  n_xs = xs.length
+  n_ys = ys.length
+
+  zs = _empty.slice 0, n_xs + n_ys
+
+  if n_xs > 0 and n_ys > 0
+    for j in [0...n_xs] by 1
+      x_l = xs[j] & __half_maskA__
+      x_h = xs[j] >>> __half_widthA__
+      i = c = 0
+      k = j
+      n = n_ys
+      while --n >= 0
+        yl_i = ys[i] & __half_maskB__
+        yh_i = ys[i++] >>> __half_widthB__
+        m = x_h * yl_i + (yh_i * x_l << 1)
+        z_j = (zs[j]|0) + x_l*yl_i + ((m & __half_maskB__) << __half_widthA__) + c
+        c = (z_j >>> __width__) + (m >>> __half_widthB__) + x_h*yh_i
+        zs[j++] = z_j & __mask__
+      zs[j] = c
+  _trim zs
+
+
+_mulEvenWithCarryMask = (xs, ys) ->
+  n_xs = xs.length
+  n_ys = ys.length
+
+  # pre-initializing the array helps
+  zs = _empty.slice 0, n_xs + n_ys
+
+  if n_xs > 0 and n_ys > 0
+    for j in [0...n_xs] by 1
+      x_l = xs[j] & __half_maskA__
+      x_h = xs[j] >>> __half_widthA__
+      i = c = 0
+      k = j
+      n = n_ys
+      while --n >= 0
+        yl_i = ys[i] & __half_maskA__
+        yh_i = ys[i++] >>> __half_widthA__
+        m = x_h*yl_i + yh_i*x_l
+        z_j = (zs[j]|0) + x_l*yl_i + ((m & __half_maskA__) << __half_widthA__) + (c & __mask__)
+        c = (z_j >>> __width__) + (m >>> __half_widthA__) + x_h*yh_i + (c >>> __width__)
+        zs[j++] = z_j & __mask__
+      zs[j] = c
+  _trim zs
+
+
+_mulOddWithCarryMask = (xs, ys) ->
+  n_xs = xs.length
+  n_ys = ys.length
+
+  # pre-initializing the array helps
+  zs = _empty.slice 0, n_xs + n_ys
+
+  if n_xs > 0 and n_ys > 0
+    for j in [0...n_xs] by 1
+      x_l = xs[j] & __half_maskA__
+      x_h = xs[j] >>> __half_widthA__
+      i = c = 0
+      k = j
+      n = n_ys
+      while --n >= 0
+        yl_i = ys[i] & __half_maskB__
+        yh_i = ys[i++] >>> __half_widthB__
+        m = x_h*yl_i + (yh_i*x_l << 1)
+        z_j = (zs[j]|0) + x_l*yl_i + ((m & __half_maskB__) << __half_widthA__) + (c & __mask__)
+        c = (z_j >>> __width__) + (m >>> __half_widthB__) + x_h*yh_i + (c >>> __width__)
+        zs[j++] = z_j & __mask__
+      zs[j] = c
+  _trim zs
+
+
+if __width__ <= 15
+  __addmul = __addmulSmallDigit
+  _mul = _mulSmallDigit
+  
+else if __width__ <= 29
+  if __width__ % 2 == 0
+    __addmul = __addmulEvenLargeDigit
+    _mul = _mulEvenLargeDigit
+
+  else
+    __addmul = __addmulOddLargeDigit
+    _mul = _mulOddLargeDigit
+
+else
+  if __width__ % 2 == 0
+    __addmul = __addmulEvenWithCarryMask
+    _mul = _mulEvenWithCarryMask
+
+  else
+    __addmul = __addmulOddWithCarryMask
+    _mul = _mulOddWithCarryMask
+
+  
 _kmul = do (_add, _kmul, _mul, _shl, _sub) ->
   _kmul = (xs, ys) ->
     n_xs = xs.length
@@ -564,90 +630,32 @@ _kmul = do (_add, _kmul, _mul, _shl, _sub) ->
       _add as, ds
       as
 
-# Chrome
-#   28 bit is fastest on Chrome
-#   at best about 30ms/1000 on 2012 MacBook Pro 2.3GHz i7 16GB
-#   for 26 bit radix:
-#     2048            37-80 (as low as 21 is nearly as good)
-#     3072            30-60
-#   for 28 bit radix:
-#     operand size    best range
-#     1024            38+
-#     1280            48+
-#     1536            56+
-#     2048            38-73
-#     2560            47-93
-#     3072            30-55 (but above 55 is less than 2% longer to run)
-#   for 30 bit radix:
-#     2048            35-70 (as low as 19 is nearly as good)
-#     3072            27-81
-#
-# Safari
-#   30 bits seem to be fastest on Safari
-#   for 2048 bits per operand, at best about 45ms/1000 on 2012 MacBook Pro 2.3GHz i7 16GB
-#   for 26 bit radix:
-#     2048            81+
-#     2560            51+
-#     3072            61+
-#   for 28 bit radix:
-#     2048            75+
-#     2560            93+
-#     3072            56+
-#   for 30 bit radix:
-#     2048            71+
-#     2560            87+
-#     3072            86+
-#  
-# Firefox
-#   30 bits seem to be fastest on Firefox
-#   for 2048 bits per operand, at best about 215ms/1000 on 2012 MacBook Pro 2.3GHz i7 16GB
-#   for 26 bit radix:
-#     2048            81+
-#     2560            51+
-#     3072            31+
-#   for 28 bit radix:
-#     2048            75+
-#     2560            47-92
-#     3072            29+
-#   for 30 bit radix:
-#     2048            71+
-#     2560            44-86 (as low as 23 is nearly as good)
-#     3072            26+
-#
-# _kmul.Threshold = 50  # Chrome 26-bit
-_kmul.Threshold = 57  # Chrome 28-bit
-# _kmul.Threshold = 69  # Chrome 30-bit
-# _kmul.Threshold = 81  # Firefox 26-bit
-# _kmul.Threshold = 75  # Firefox 28-bit
-# _kmul.Threshold = 71  # Firefox 30-bit
-# _kmul.Threshold = 81  # Safari 26-bit
-# _kmul.Threshold = 87  # Safari 28-bit
-# _kmul.Threshold = 93  # Safari 30-bit
+_kmul.Threshold = Infinity
 
 
-_sq = do (__addmul, _zeros) ->
+_sq = do (__addmul, _empty) ->
   (xs) ->
     i = 0
     j = n = xs.length
-    zs = _zeros.slice 0, 2*n
+    zs = _empty.slice 0, 2*n
 
     while n > 1
       c = __addmul zs, 2*i, xs[i], xs, i, 0, 1
-      if (zs[j] += (__addmul zs, 2*i + 1, xs[i] << 1, xs, i + 1, c, --n)) >= __base__
+      if (zs[j] = (zs[j]|0) + __addmul zs, 2*i + 1, xs[i] << 1, xs, i + 1, c, --n) >= __base__
         zs[j] -= __base__
         zs[j+1] = 1
       i++
       j++
 
     if n > 0
-      zs[j] += __addmul zs, 2*i, xs[i], xs, i, 0, 1
+      zs[j] = (zs[j]|0) + __addmul zs, 2*i, xs[i], xs, i, 0, 1
 
     while zs[j] == 0 then j--
     zs.length = j+1 if zs.length-1 > j
 
     zs
 
-
+        
 # Applying Karatsuba multiplication to squaring is only useful for operands >2048 bits
 # in length. 
 _ksq = do (_add, _ksq, _shl, _sq, _sub) ->
@@ -673,7 +681,7 @@ _ksq = do (_add, _ksq, _shl, _sq, _sub) ->
       _add as, ds
       as
 
-# for 28 bit radix
+# for 28 bit width
 #   operand size    best range
 #   1024            38+
 #   1280            47+
@@ -718,10 +726,18 @@ __divmod = do (__add, __addmul, _lt, _size, _sub) ->
       qs[k] = 1
 
     # 52 is the IEEE floating point standard mantissa length in bits (64 bit double)
-    ys_t = (ys_t0 * (1 << 52 - __radix__)) + (ys[t-1] >>> 2 * __radix__ - 52)
+    if __width__ >= 26
+      ys_t = (ys_t0 * (1 << 52 - __width__)) + (ys[t-1] >>> 2 * __width__ - 52)
+    else
+      digits = ceil 52/__width__
+      if digits > ys.length
+        ys_t = _value _bshl ys.slice(), 52 - __width__ * ys.length
+      else
+        ys_t = _value _bshr (ys.slice -digits), __width__ * digits - 52
+
     d1 = (pow 2, 52)/ys_t
-    d2 = (1 << 52 - __radix__)/ys_t
-    e = 1 << 2 * __radix__ - 52
+    d2 = (pow 2, 52 - __width__)/ys_t
+    e = pow 2, 2 * __width__ - 52
 
     # create local namespace for speedy access to loop variables
     do (xs, neg_ys, qs, i, k, ys_t0, d1, d2, e, __addmul, __add) ->
@@ -730,14 +746,16 @@ __divmod = do (__add, __addmul, _lt, _size, _sub) ->
       # 14.20.3
       while --k >= 0
         # 14.20.3.1
-        if xs[i] == ys_t0
+        x_i = xs[i] & __mask__
+        
+        if x_i == ys_t0
           # __base__ - 1... highest digit value
           q_i = __mask__
 
         else
-          q_i = xs[i] * d1 + (xs[i-1] + e) * d2 & __mask__
+          q_i = x_i * d1 + (xs[i-1] + e) * d2 & __mask__
 
-        if xs[i] += (__addmul xs, k, q_i, neg_ys, 0, 0, n) - q_i
+        if xs[i] = x_i + (__addmul xs, k, q_i, neg_ys, 0, 0, n) - q_i
           xs[i] += (__add xs, k, ys, 0, 0, n) + 1
           q_i--
 
@@ -754,11 +772,12 @@ __divmod = do (__add, __addmul, _lt, _size, _sub) ->
 _divmod = do (_bshl, _bshr, __divmod, _size) ->
   (xs, ys) ->
     # Note 14.23 on normalization
-    y_t = ys[(_size ys)-1]
+    _trim ys
+    y_t = ys[ys.length-1]
     c = 1
     while (y_t >>>= 1) > 0 then c++
 
-    k = __radix__ - c
+    k = __width__ - c
     ws = _bshl xs.slice(), k
     zs = _bshl ys.slice(), k
 
@@ -778,7 +797,7 @@ _pow = do (_kmul, _sq) ->
     zs = [1]
     xs = xs.slice()
     while k > 0
-      zs = _kmul zs, xs if k & 1
+      zs = _mul zs, xs if k & 1
       xs = _sq xs
       k >>>= 1
 
@@ -812,7 +831,7 @@ _cofactorMont = (ms) ->
     # last step - calculate inverse mod __base__ directly;
     # assumes 16 < DB <= 32 and assumes ability to handle 48-bit ints
     # 
-    y = (y*(2 - x*y % __base__)) % __base__      # y == 1/x mod 2^__radix__
+    y = (y*(2 - x*y % __base__)) % __base__      # y == 1/x mod 2^__width__
 
     # we really want the negative inverse, and -__base__ < y < __base__
     if y > 0
@@ -822,74 +841,93 @@ _cofactorMont = (ms) ->
   y
 
 
+# Here is another way to compute the same result.  This version is slower; the clever algebraic version above
+# has less than 2/3rds the running time of this one.
+# 
+_cofactorMontB = (ms) ->
+  x = ms[0]
+  y = 0
+  z = 0
+  b = 1
+  while b < __base__
+    if (y & 1) is 0
+      y = y + x & __mask__
+      z |= b
+    y >>>= 1
+    b <<= 1
+  z
+  
+
 _liftMont = do (_mod, _shl) -> (xs, ms) -> _mod (_shl xs.slice(), ms.length), ms
 
-if __radix__ <= 28
+if __width__ <= 29
   __addmul0 = (xs, t, ys, n) ->
-    t_l = t & __demimask__
-    t_h = t >>> __demiradix__
+    t_l = t & __half_maskA__
+    t_h = t >>> __half_widthA__
     i = j = c = 0
     while --n >= 0
-      y_l = ys[i] & __demimask__
-      y_h = ys[i++] >>> __demiradix__
-      m = t_h * y_l + y_h * t_l
-      l = t_l * y_l + ((m & __demimask__) << __demiradix__) + xs[j] + c
-      c = (l >>> __radix__) + (m >>> __demiradix__) + t_h * y_h
+      y_l = ys[i] & __half_maskB__
+      y_h = ys[i++] >>> __half_widthB__
+      m = t_h * y_l + (y_h * t_l << (__width__ & 1))
+      l = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + c
+      c = (l >>> __width__) + (m >>> __half_widthB__) + t_h * y_h
       xs[j++] = l & __mask__
 
-    xs[j] += c
+    xs[j] = (xs[j]|0) + c
 
     while xs[j] >= __base__
-      xs[j] -= __base__
-      xs[++j]++
+      xs[j++] -= __base__
+      xs[j] = (xs[j]|0) + 1
 
     xs
 
 else
   __addmul0 = (xs, t, ys, n) ->
-    t_l = t & __demimask__
-    t_h = t >>> __demiradix__
+    t_l = t & __half_maskA__
+    t_h = t >>> __half_widthA__
     i = j = c = 0
     while --n >= 0
-      y_l = ys[i] & __demimask__
-      y_h = ys[i++] >>> __demiradix__
-      m = t_h * y_l + y_h * t_l
-      l = t_l * y_l + ((m & __demimask__) << __demiradix__) + xs[j] + (c & __mask__)
-      c = (l >>> __radix__) + (m >>> __demiradix__) + t_h * y_h + (c >>> __radix__)
+      y_l = ys[i] & __half_maskB__
+      y_h = ys[i++] >>> __half_widthB__
+      m = t_h * y_l + (y_h * t_l << (__width__ & 1))
+      l = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + (c & __mask__)
+      c = (l >>> __width__) + (m >>> __half_widthB__) + t_h * y_h + (c >>> __width__)
       xs[j++] = l & __mask__
 
-    xs[j] += c
+    xs[j] = (xs[j]|0) + c
 
     while xs[j] >= __base__
-      xs[j] -= __base__
-      xs[++j]++
+      xs[j++] -= __base__
+      xs[j] = (xs[j]|0) + 1
 
     xs
 
 
-_reduceMont = do (_lt, _shr, _sub, _trim, _zeros) ->
+_reduceMont = do (_lt, _shr, _sub, _trim, _empty) ->
 
   # computes xs * R^-1 mod ms
   (xs, ms, W) ->
     addmul0 = __addmul0
-    W_l = W & __demimask__
-    W_h = W >>> __demiradix__
+    W_l = W & __half_maskA__
+    W_h = W >>> __half_widthA__
 
     n_ms = ms.length
 
     i = 0
-    zs = _zeros.slice 0, 2 + 2*n_ms
+    zs = _empty.slice 0, 2 + 2*n_ms
     while i < n_ms
-      z = zs[0] += xs[i++] & -1
+      z = zs[0] = (zs[0]|0) + xs[i++] & -1
       j = 0
       while zs[j] >= __base__
         zs[j] -= __base__
-        zs[++j]++
+        j++
+        zs[j] = (zs[j]|0) + 1
 
-      u_l = z & __demimask__
-      u_h = (z >>> __demiradix__) & __demimask__
+      # Montgomery reduction step
+      z_l = zs[0] & __half_maskB__
+      z_h = zs[0] >>> __half_widthB__
 
-      u_i = W_l * u_l + (W_l * u_h + W_h * u_l << __demiradix__) & __mask__
+      u_i = W_l * z_l + (((W_l * z_h << (__width__ & 1)) + W_h * z_l & __half_maskB__) << __half_widthA__) & __mask__
       addmul0 zs, u_i, ms, n_ms
 
       #_shr zs, 1
@@ -904,47 +942,48 @@ _reduceMont = do (_lt, _shr, _sub, _trim, _zeros) ->
 # Squaring).  It is has about 75% of the running time of the equivalent functionality using
 # _mulMont below.
 # 
-_sqMont = do (_lt, _sub, _zeros) ->
+_sqMont = do (_lt, _sub, _empty) ->
   # computes xs * xs * R^-1 mod ms
   (xs, ms, W) ->
     addmul = __addmul
     addmul0 = __addmul0
     
-    W_l = W & __demimask__
-    W_h = W >>> __demiradix__
+    W_l = W & __half_maskA__
+    W_h = W >>> __half_widthA__
     
     i = 0
     n = n_ms = ms.length
-    zs = _zeros.slice 0, 2 * n_ms + 2
+    zs = _empty.slice 0, 2 * n_ms + 2
 
     while n > 0
       x_i = xs[i] & -1
 
       # zs[i] <-- zs[i] + xs[i]^2
-      xi_l = x_i & __demimask__
-      xi_h = x_i >>> __demiradix__
+      xi_l = x_i & __half_maskB__
+      xi_h = x_i >>> __half_widthB__
       
       m = (xi_h * xi_l) << 1
-      l = xi_l * xi_l + ((m & __demimask__) << __demiradix__) + zs[i]
+      l = xi_l * xi_l + ((m & __half_maskA__) << __half_widthB__) + (zs[i]|0)
       zs[i++] = l & __mask__
 
       # propagate carries
       j = i
-      zs[j] += (l >>> __radix__) + (m >>> __demiradix__) + xi_h * xi_h
+      zs[j] = (zs[j]|0) + (l >>> __width__) + (m >>> __half_widthA__) + (xi_h * xi_h << (__width__ & 1))
       while zs[j] >= __base__
         zs[j] -= __base__
-        zs[++j]++
+        j++
+        zs[j] = (zs[j]|0) + 1
 
       # zs[i + j] <-- zs[i + j] + xs[i] * xs[j] for j in i+1...n_ms
-      if (zs[n_ms] += (addmul zs, i, x_i << 1, xs, i, 0, --n)) >= __base__
+      if (zs[n_ms] = (zs[n_ms]|0) + addmul zs, i, x_i << 1, xs, i, 0, --n) >= __base__
         zs[n_ms] -= __base__
         zs[n_ms+1] = 1
 
       # Montgomery reduction step
-      u_l = zs[0] & __demimask__
-      u_h = zs[0] >>> __demiradix__
+      z_l = zs[0] & __half_maskB__
+      z_h = zs[0] >>> __half_widthB__
 
-      u_i = W_l * u_l + (W_l * u_h + W_h * u_l << __demiradix__) & __mask__
+      u_i = W_l * z_l + (((W_l * z_h << (__width__ & 1)) + W_h * z_l & __half_maskB__) << __half_widthA__) & __mask__
       addmul0 zs, u_i, ms, n_ms
 
       #_shr zs, 1
@@ -955,35 +994,35 @@ _sqMont = do (_lt, _sub, _zeros) ->
     zs
 
 
-_mulMont = do (_lt, _shr, _sub, _trim, _zeros) ->
+_mulMont = do (_lt, _shr, _sub, _trim, _empty) ->
 
   # computes xs * ys * R^-1 mod ms
   (xs, ys, ms, W) ->
     addmul0 = __addmul0
-    W_l = W & __demimask__
-    W_h = W >>> __demiradix__
+    W_l = W & __half_maskA__
+    W_h = W >>> __half_widthA__
 
-    y0_l = ys[0] & __demimask__
-    y0_h = ys[0] >>> __demiradix__
+    y0_l = ys[0] & __half_maskA__
+    y0_h = ys[0] >>> __half_widthA__
 
     n_ms = ms.length
     n_ys = ys.length
 
     i = 0
-    zs = _zeros.slice 0, 2*n_ms + 2
+    zs = _empty.slice 0, 2*n_ms + 2
     while i < n_ms
       x_i = xs[i++] & -1
 
-      xi_l = x_i & __demimask__
-      xi_h = x_i >>> __demiradix__
+      xi_l = x_i & __half_maskB__
+      xi_h = x_i >>> __half_widthB__
 
-      u = y0_l * xi_l + ((y0_l * xi_h + y0_h * xi_l) << __demiradix__)
-      u = u + zs[0] & __mask__
+      u = y0_l * xi_l + (((y0_l * xi_h << (__width__ & 1)) + y0_h * xi_l) << __half_widthA__)
+      u = u + (zs[0]|0) & __mask__
 
-      u_l = u & __demimask__
-      u_h = u >>> __demiradix__
+      z_l = u & __half_maskB__
+      z_h = u >>> __half_widthB__
 
-      u_i = W_l * u_l + ((W_l * u_h + W_h * u_l) << __demiradix__) & __mask__
+      u_i = W_l * z_l + (((W_l * z_h << (__width__ & 1)) + W_h * z_l & __half_maskB__) << __half_widthA__) & __mask__
 
       addmul0 zs, x_i, ys, n_ys
       addmul0 zs, u_i, ms, n_ms
@@ -998,8 +1037,10 @@ _mulMont = do (_lt, _shr, _sub, _trim, _zeros) ->
 
 # modular arithmetic
 
-_mulmod = do (_divmod, _kmul) ->
-  (xs, ys, ms) -> (_divmod (_kmul xs, ys), ms)[1]
+_negateMod = (xs, ms) -> if _eq xs, [0] then xs else _sub ms.slice(), xs
+
+_mulmod = do (_divmod, _mul) ->
+  (xs, ys, ms) -> (_divmod (_mul xs, ys), ms)[1]
 
 
 _simpleSqmod = do (_divmod, _sq) ->
@@ -1026,21 +1067,21 @@ _sqmod = do (_montgomerySqmod, _msb, _simpleSqmod) ->
     else
       _montgomerySqmod xs, ms
 
-_sqmod.SimpleSqBitLimit = 0 
+_sqmod.SimpleSqmodBitLimit = Infinity
 
 
-_simplePowmod = do (_kmul, _mod, _sq) ->
+_simplePowmod = do (_mul, _mod, _sq) ->
   (xs, ys, ms) ->
     xs = _mod xs, ms
 
     j = ys.length-1
-    i = __radix__ - 1
+    i = __width__ - 1
     d = ys[j]
     while (d & (1 << i)) == 0
       if --i < 0
         if j == 0
           return [0]
-        i += __radix__
+        i += __width__
         d = ys[--j]
 
     zs = xs
@@ -1048,19 +1089,19 @@ _simplePowmod = do (_kmul, _mod, _sq) ->
     if --i < 0
       if j == 0
         return zs
-      i += __radix__
+      i += __width__
       d = ys[--j]
 
     zs = _mod (_sq xs), ms
 
     loop
       if d & (1 << i)
-        zs = _mod (_kmul zs, xs), ms
+        zs = _mod (_mul zs, xs), ms
 
       if --i < 0
         if j == 0
           return zs
-        i += __radix__
+        i += __width__
         d = ys[--j]
 
       zs = _mod (_sq zs), ms
@@ -1133,7 +1174,7 @@ _windowSize = do () ->
     k
     
     
-_slidingWindowPowmod = do (_kmul, _mod, _sq, _windowSize) ->
+_slidingWindowPowmod = do (_mul, _mod, _sq, _windowSize) ->
   (xs, ys, ms, t) ->
     
     xs = _mod xs, ms
@@ -1146,14 +1187,14 @@ _slidingWindowPowmod = do (_kmul, _mod, _sq, _windowSize) ->
     w = _windowSize[t]
     count = 1 << w
     while gns.length < count
-      gs = _mod (_kmul gs, g2s), ms
+      gs = _mod (_mul gs, g2s), ms
       gns.push undefined, gs
 
     zs = xs
     mask = count - 1
     t--
-    i = t % __radix__
-    t = t/__radix__ & 1
+    i = t % __width__
+    t = t/__width__ | 0
     y_t = ys[t]
     while i >= 0
       if (y_t & (1 << i)) is 0
@@ -1164,7 +1205,7 @@ _slidingWindowPowmod = do (_kmul, _mod, _sq, _windowSize) ->
         j = i + 1 - w
         if j < 0
           if t > 0
-            y = (y_t << -j | ys[t-1] >> __radix__ + j) & mask
+            y = (y_t << -j | ys[t-1] >> __width__ + j) & mask
           else
             y = y_t & (mask >>> -j)
             j = 0
@@ -1180,13 +1221,13 @@ _slidingWindowPowmod = do (_kmul, _mod, _sq, _windowSize) ->
         while k-- > 0
           zs = _mod (_sq zs), ms
 
-        zs = _mod (_kmul zs, gns[y]), ms
+        zs = _mod (_mul zs, gns[y]), ms
         i = j - 1
 
       if i < 0
         if t > 0
           y_t = ys[--t]
-          i += __radix__
+          i += __width__
 
     zs
 
@@ -1228,8 +1269,8 @@ _slidingWindowPowMontA = do (_mulMont, _mod, _sq, _windowSize) ->
     zs = xs
     mask = count - 1
     t--
-    i = t % __radix__
-    t = t/__radix__ & -1
+    i = t % __width__
+    t = t/__width__ & -1
     y_t = ys[t]
     while i >= 0
       if (y_t & (1 << i)) is 0
@@ -1240,7 +1281,7 @@ _slidingWindowPowMontA = do (_mulMont, _mod, _sq, _windowSize) ->
         j = i + 1 - w
         if j < 0
           if t > 0
-            y = (y_t << -j | ys[t-1] >>> __radix__ + j) & mask
+            y = (y_t << -j | ys[t-1] >>> __width__ + j) & mask
           else
             y = y_t & (mask >>> -j)
             j = 0
@@ -1262,7 +1303,7 @@ _slidingWindowPowMontA = do (_mulMont, _mod, _sq, _windowSize) ->
       if i < 0
         if t > 0
           y_t = ys[--t]
-          i += __radix__
+          i += __width__
 
 
     # for large (>1024 bits) operands, there is no measurable difference between the two lines below.
@@ -1288,8 +1329,8 @@ _slidingWindowPowMontB = do (_mulMont, _mod, _sq, _windowSize) ->
     zs = xs
     mask = count - 1
     t--
-    i = t % __radix__
-    t = t/__radix__ & -1
+    i = t % __width__
+    t = t/__width__ & -1
     y_t = ys[t]
     while i >= 0
       if (y_t & (1 << i)) is 0
@@ -1300,7 +1341,7 @@ _slidingWindowPowMontB = do (_mulMont, _mod, _sq, _windowSize) ->
         j = i + 1 - w
         if j < 0
           if t > 0
-            y = (y_t << -j | ys[t-1] >>> __radix__ + j) & mask
+            y = (y_t << -j | ys[t-1] >>> __width__ + j) & mask
           else
             y = y_t & (mask >>> -j)
             j = 0
@@ -1322,7 +1363,7 @@ _slidingWindowPowMontB = do (_mulMont, _mod, _sq, _windowSize) ->
       if i < 0
         if t > 0
           y_t = ys[--t]
-          i += __radix__
+          i += __width__
 
 
     # for large (>1024 bits) operands, there is no measurable difference between the two lines below.
@@ -1331,13 +1372,12 @@ _slidingWindowPowMontB = do (_mulMont, _mod, _sq, _windowSize) ->
     _mulMont zs, [1], ms, W
     #_reduceMont zs, ms, W
 
+if Browser.name is 'Chrome'
+  _slidingWindowPowMont = _slidingWindowPowMontA
+else
+  _slidingWindowPowMont = _slidingWindowPowMontB
         
-_montgomeryPowmod = do (_cofactorMont, _liftMont, _mod, _trim) ->
-  if Browser.name is 'Chrome'
-    _slidingWindowPowMont = _slidingWindowPowMontA
-  else
-    _slidingWindowPowMont = _slidingWindowPowMontB
-    
+_montgomeryPowmod = do (_cofactorMont, _liftMont, _mod, _slidingWindowPowMont, _trim) ->
     # computes xs ^ ys mod ms
   (xs, ys, ms, t) ->
     W = _cofactorMont _trim ms
@@ -1360,16 +1400,16 @@ _powmod = do (_mod, _msb, _powMont, _shl, _simplePowmod, _slidingWindowPowmod, _
     else
       _montgomeryPowmod xs, ys, ms, t
 
-# for 28 bit radix
-#   operand size    best value
-#   1024            17
-#   2048            17
-#   3072            19
-#_powmod.SimplePowmodBitLimit = 17
-_powmod.SimplePowmodBitLimit = 0 
+# See compare/modular-exponentiation.html
+_powmod.SimplePowmodBitLimit = 17
 
-# To be determined
-_powmod.SlidingWindowPowmodBitLimit = 0
+# See compare/modular-exponentiation.html
+
+_powmod.SlidingWindowPowmodBitLimit = (
+  Chrome:   0
+  Firefox:  512
+  Opera:    256
+  Safari:   0)[Browser.name] or 512
 
 
 Functions =
@@ -1384,13 +1424,14 @@ Functions =
   _bshl:                    _bshl
   _bshr:                    _bshr
   _cofactorMont:            _cofactorMont
+  _cofactorMontB:           _cofactorMontB
   _div:                     _div
   _divmod:                  _divmod
   __divmod:                 __divmod
+  _empty:                   _empty
   _eq:                      _eq
   _estimateWindowSizeMap:   _estimateWindowSizeMap
   _estimateWindowSizeTransitions: _estimateWindowSizeTransitions
-  _hex:                     _hex
   install:                  install
   _kmul:                    _kmul
   _ksq:                     _ksq
@@ -1399,21 +1440,21 @@ Functions =
   _mod:                     _mod
   _montgomeryPowmod:        _montgomeryPowmod
   _msb:                     _msb
-  _mul1:                    _mul1
   _mul:                     _mul
   _mulmod:                  _mulmod
   _mulMont:                 _mulMont
+  _negateMod:               _negateMod
   _pack:                    _pack
+  _parseHex:                _parseHex
   _pow:                     _pow
   _powmod:                  _powmod
   _powMont:                 _powMont
-  _radix:                   __radix__
   _random:                  _random
   _reduceMont:              _reduceMont
-  _repr:                    _repr
   _shl:                     _shl
   _shr:                     _shr
   _simplePowmod:            _simplePowmod
+  _simpleSqmod:             _simpleSqmod
   _slidingWindowPowmod:     _slidingWindowPowmod
   _slidingWindowPowMontA:    _slidingWindowPowMontA
   _slidingWindowPowMontB:    _slidingWindowPowMontB
@@ -1424,10 +1465,11 @@ Functions =
   _sub:                     _sub
   _trim:                    _trim
   _value:                   _value
+  _width:                   __width__
   _windowSize:              _windowSize
   _zeros:                   _zeros
 
-exports.Functions__radix__ = Functions
+exports.Functions__width__ = Functions
 ## %% Begin Remove for Specialize %%
 exports.Functions = Functions
 ## %% End Remove for Specialize %%

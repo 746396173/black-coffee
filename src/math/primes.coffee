@@ -15,10 +15,11 @@ assert = do () ->
   (cond) -> if not cond then throw stackTrace()
 
 class Primes
+  { floor } = Math
+  
+  top = new Long 2
 
-  top = new Long28 2
-
-  primes = [top, (new Long28 3), (new Long28 5)]
+  primes = [top, (new Long 3), (new Long 5)]
 
   @get: (n) ->
     while n > primes.length-1
@@ -46,9 +47,58 @@ class Primes
 
   @find: (bits) ->
     start = new Date
+
+    # Compute product of P consecutive low primes such that bit length P < bits - 10.  This will
+    # be used as the increment from one candidate to the next.
+    # 
+    i = 0
+    P = new Long 1
+    while P.msb() + (Primes.get i).msb() < bits - 10
+      P = P.mul Primes.get i++
+
+    p = null
+    tries = 0
+    while not p?
+      
+      # find x0 of target bit length which is not divisible by any of 
+      x0 = null
+      while not x0?
+        x = Long.random bits
+        x.bitset 0, 1
+        x.bitset bits-1, 1
+        t = new LowPrimesTest x, trials: i
+        while t.check() then null
+        if t.result then x0 = x
+
+      x = x0
+      while not p? and  x.msb() == bits-1
+        t = new IntegratedPrimalityTest x, LowPrimes: skip: i, trials: floor bits * 1.5
+        while t.check() then null
+        if t.result then p = x
+        tries++
+        x = x.add(P)
+
+      x = x0.sub(P)
+      while not p? and x.msb() == bits-1
+        t = new IntegratedPrimalityTest x, LowPrimes: skip: i, trials: floor bits * 1.5
+        while t.check() then null
+        if t.result then p = x
+        tries++
+        x = x.sub(P)
+
+      
+#      console.log i
+#      if i % 100 == 0
+
+    p: p
+    trials: tries
+    time: (new Date) - start
+    
+  @findA: (bits) ->
+    start = new Date
     i = 0
     p = null
-    x = Long28.random bits
+    x = Long.random bits
     x.digits[0] |= 1
     x.bitset bits-1, 1
     
@@ -82,23 +132,25 @@ class LowPrimesTest extends PrimalityTest
   constructor: (@N, @options) ->
     @options or= {}
 
-    @T = @options.trials or 4500#20
-    @interval = @options.interval or 100
+    @T = @options.trials or 3000
+#    @interval = @options.interval or 100
+    @skip = @options.skip or 0
 
     Primes.get @T
-    @trials = Primes.all().slice 0, @T
+    @trials = Primes.all().slice @skip, @T
 
   next: () ->
-    start = new Date
-    while not @finished() and (new Date) - start < @interval
+ #   start = new Date
+    while not @finished()# and (new Date) - start < @interval
       p = @trials.pop()
-      result = false if (@N.mod p).gt 0
+      @result = false if (@N.mod p).eq 0
+    this
 
 
 class MillerRabinTest extends PrimalityTest
   { floor, random } = Math
 
-  { _bit, _bshr, _repr } = Long28
+  { _bit, _bshr, _repr } = Long
 
   randomHex = do () ->
     codex = do () -> i.toString(16) for i in [0...16]
@@ -107,47 +159,68 @@ class MillerRabinTest extends PrimalityTest
 
   randomDigits = (bits) -> _repr randomHex bits >> 2
 
-  randomLong = (bits) -> new Long28 randomDigits bits
+  randomLong = (bits) -> new Long randomDigits bits
 
   @randomLong: randomLong
 
-  constructor: (@N, @options) ->
+  constructor: (@M, @options) ->
     @options or= {}
 
-    if (@N.eq 1) or (@N.bit 0) is 0
+    if (@M.eq 1) or (@M.bit 0) is 0
       @result = false
       return
 
     @result = null
 
-    @m = @N.sub 1
-    xs = @m.digits.slice()
+    @n = @M.sub 1
+
+    # Montgomery reduction parameters
+    @W = @M.cofactorMont()
+    @M1 = @M.liftMont [1]
 
     @s = 0
-    while not _bit xs, @s
+    while not @n.bit @s
       @s++
 
-    _bshr xs, @s if @s > 0
-
-    @r = new Long28 xs
+    @r = @n.bshr @s
+    @t = @r.msb()
 
     @T = @options.trials or 2
     Primes.get @T
-    @trials = Primes.all().slice 0, @T
+    @trials = Primes.all().slice 0, 1#@T
 
 
+#   next: () ->
+#     a = @trials.pop()
+#     y = a.powmod @r, @M
+#     if not (y.eq 1) and not y.eq @n
+#       j = 1
+#       while j++ < @s
+#         y = y.sqmod @M
+#         if y.eq 1
+#           @result = false
+#           return
+
+#         if y.eq @n then return
+
+#       @result = false
+      
   next: () ->
-    a = @trials.pop()
-    y = a.powmod @r, @N
-    if not (y.eq 1) and not y.eq @m
+    { _eq, _liftMont, _slidingWindowPowMontA, _sqMont } = @M
+    ms = @M.digits
+    xs = _liftMont @trials.pop().digits, ms
+    ns = @n.digits
+    m1s = @M1.digits
+    ys = _slidingWindowPowMontA xs, @r.digits, ms, @t, @W, m1s.slice()
+    if not (_eq ys, m1s) and not _eq ys, ns
       j = 1
       while j++ < @s
-        y = y.sqmod @N
-        if y.eq 1
+        ys = _sqMont ys, ms, @W
+        if _eq ys, m1s
           @result = false
           return
 
-        if y.eq @m then return
+        if _eq ys, ns then return
 
       @result = false
       

@@ -88,14 +88,14 @@ $ ->
       @repeatCount = 0
 
     # bpe is a global defined in BigInt.js
-    makeBigInt = (x) -> Long28._repack x.digits, bpe
+    makeBigInt = (x) -> Long28._pack x.digits, bpe
 
     makeBigInteger = (x) ->
       z = nbi()
       if z.DB == 28
         digits = x.digits
       else
-        digits = Long28._repack x.digits, z.DB
+        digits = Long28._pack x.digits, z.DB
         
       for d, i in digits
         z[i] = d
@@ -106,20 +106,33 @@ $ ->
       z
 
     constructors =
-      BigInt:     (Xs) -> makeBigInt x for x in Xs
-      jsbn:       (Xs) -> makeBigInteger x for x in Xs
-      Long:       (Xs) -> new Long Long28._repack x.digits, Long._radix for x in Xs
-      LongA:      (Xs) -> Xs
-      LongB:      (Xs) -> Xs
-      LongC:      (Xs) -> Xs
-      LongD:      (Xs) -> Xs
-      LongE:      (Xs) -> Xs
-      Long26:     (Xs) -> new Long26 Long28._repack x.digits, 26 for x in Xs
-      Long28:     (Xs) -> Xs
-      Long30:     (Xs) -> new Long30 Long28._repack x.digits, 30 for x in Xs
+      BigInt:     (Xs) -> x.toBigInt() for x in Xs
+      jsbn:       (Xs) -> x.toBigInteger() for x in Xs
+      Long:       (Xs) -> new Long x for x in Xs
+      LongA:      (Xs) -> new Long28 x for x in Xs
+      LongB:      (Xs) -> new Long28 x for x in Xs
+      LongC:      (Xs) -> new Long28 x for x in Xs
+      LongD:      (Xs) -> new Long28 x for x in Xs
+      LongE:      (Xs) -> new Long28 x for x in Xs
+      Long26:     (Xs) -> new Long26 x for x in Xs
+      Long28:     (Xs) -> new Long28 x for x in Xs
+      Long30:     (Xs) -> new Long30 x for x in Xs
 
     @constructors: constructors
 
+    standardizers = 
+      BigInt:     (Xs) -> Long.fromBigInt x for x in Xs
+      jsbn:       (Xs) -> Long.fromBigInteger x for x in Xs
+      Long:       (Xs) -> new Long x for x in Xs
+      LongA:      (Xs) -> new Long x for x in Xs
+      LongB:      (Xs) -> new Long x for x in Xs
+      LongC:      (Xs) -> new Long x for x in Xs
+      LongD:      (Xs) -> new Long x for x in Xs
+      LongE:      (Xs) -> new Long x for x in Xs
+      Long26:     (Xs) -> new Long x for x in Xs
+      Long28:     (Xs) -> new Long x for x in Xs
+      Long30:     (Xs) -> new Long x for x in Xs
+      
     createOperands: (@L, N) ->
       # @L is the bit-length
       # N is the number of operations that will be performed; equiv, the number of operand sets
@@ -128,7 +141,7 @@ $ ->
       @operands = {}
       @operands[name] = [] for name in @dataTypes
       for n in @getOperandLengths @L
-        Xs = (Long28.random n for j in [0...N])
+        Xs = (Long.random n for j in [0...N])
         @operands[name].push constructors[name] Xs for name in @dataTypes
 
       @results = {}
@@ -426,7 +439,7 @@ $ ->
   dataTypes = ['jsbn', 'Long26', 'Long28', 'Long30']
   modulusChart = new ModulusComparisonChart 'modulus_chart', bitLengths, 2000, dataTypes
   modulusChart.repeatCount = 40
-#  modulusChart.scheduleCalculations taskQueue
+  modulusChart.scheduleCalculations taskQueue
   window.modulusChart = modulusChart
   
 
@@ -547,11 +560,61 @@ $ ->
   window.modularExponentiationFixedBaseChart = modularExponentiationFixedBaseChart
 
   modularExponentiationFixedBaseChart.repeatCount = 100
+#  modularExponentiationFixedBaseChart.scheduleCalculations taskQueue
+
+
+  class PrimeFinderComparisonChart extends DataTypeComparisonChart
+    title: 'Find Probable Prime (Low Prime/Miller-Rabin)'
+
+    constructor: (container, Ls, N, dataTypes) ->
+      super container, Ls, N, dataTypes
+      @warmUpLength = 1
+      @rangeType = 'logarithmic'
+      @yAxisTitle = 'seconds/prime'
+      @chartType = 'scatter'
+      
+    operators:
+      BigInt: () -> new Long Long._pack (randProbPrime @L), 15
+      jsbn: () -> new Long Long._pack (RSAGenerate @L, '10001'), 28
+      Long: () -> Primes.find @L
+      
+    getOperandLengths: (L) -> []
+
+    checkConsistency: () ->
+      @report 'checking consistency of ' + @L + '-bit probable primes'
+      for j in [0...@N]
+        for name in @dataTypes
+          P = @results[name][0]
+          resultSet[hexifiers[name] @results[name][j]] = true
+
+        if (Object.keys resultSet).length > 1
+          return @reportConsistencyFailure j
+
+    reportConsistencyFailure: (j) ->
+      # validate each returned prime with the other libs
+      @report 'consistency failure: set: ' + j
+      for name in @dataTypes when (name.slice 0, 4) == 'Long'
+        console.log name + ': base:' + @bases[name].digits
+        for op, i in @operands[name]
+          console.log name + ': op' + i + ': ' + op[j].digits
+      for name in @dataTypes
+        @report '  ' + (padRight name + ':', 12) + ComparisonChart.hexifiers[name] @results[name][j]
+        
+  #dataTypes = ['BigInt', 'jsbn', 'Long28', 'Long30']
+  #dataTypes = ['BigInt', 'jsbn', 'LongC']
+  #dataTypes = ['LongA', 'LongB', 'LongC']
+  dataTypes = ['BigInt', 'jsbn', 'Long']
+  #bitLengths = [8]#, 16, 32, 64, 128, 256, 512, 1024]
+  bitLengths = [1024, 1280, 1536, 1792, 2048, 2560, 3072, 3584, 4096]
+  modularExponentiationFixedBaseChart = new ModularExponentiationFixedBaseComparisonChart 'modular_exponentiation_fixed_odd_base_chart', bitLengths, 10, dataTypes
+  window.modularExponentiationFixedBaseChart = modularExponentiationFixedBaseChart
+
+  modularExponentiationFixedBaseChart.repeatCount = 100
   modularExponentiationFixedBaseChart.scheduleCalculations taskQueue
 
 
   class KaratsubaComparisonChart extends ParameterComparisonChart
-    title: 'Karatsuba Multiplication'
+    title: 'Karatsuba Multiplier Threshold Parameter'
     
     operators:
       Long26:  (v, A, B) ->
@@ -646,7 +709,7 @@ $ ->
   #modexpMethodChart.scheduleCalculations taskQueue
   window.modexpMethodChart = modexpMethodChart
   
-  taskQueue.process()
+#  taskQueue.process()
 
 #  window.setTimeout (() ->
 #    console.log 'finding a 512-bit prime...'

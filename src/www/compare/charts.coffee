@@ -179,6 +179,12 @@ class ComparisonChart
     for name in @dataTypes when (name.slice 0, 4) == 'Long'
       for op, i in @operands[name]
         @report name + ': op' + i + ': ' + op[j].digits
+
+    @report 'Result Digits:'
+    for name in @dataTypes
+      @report '  ' + (padRight name + ':', 12) + @standardized[name][j].digits
+
+    @report 'Result Hex:'
     for name in @dataTypes
       @report '  ' + (padRight name + ':', 12) + @standardized[name][j].toString()
 
@@ -245,14 +251,11 @@ class DataTypeComparisonChart extends ComparisonChart
 
   warmUp: () ->
     @report 'warming up...'
-#     @reporting = false
 
     for L in @Ls
       @createOperands L, @warmUpLength
       for name in @dataTypes
         @doOperation name
-
-    @reporting = true
 
 
   doOperation: (name) ->
@@ -351,15 +354,12 @@ class ParameterComparisonChart extends ComparisonChart
 
   warmUp: () ->
     @report 'warming up...'
-    @reporting = false
 
     for L in @Ls
       @createOperands L, @warmUpLength
       for name in @dataTypes
         for v in @parameterValues
           @doOperation name, v
-
-    @reporting = true
 
 
   doOperation: (name, v) ->

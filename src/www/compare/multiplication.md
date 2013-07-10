@@ -15,7 +15,7 @@ Unrolled multipliers.
 <script src="math/mul-30-bit.js"></script>
 -->
 
-<script src="../browser.js"></script>
+<script src="../platform.js"></script>
 <script src="../math/functions-14-bit.js"></script>
 <script src="../math/functions-15-bit.js"></script>
 <script src="../math/functions-26-bit.js"></script>

@@ -380,11 +380,11 @@ class Long
 class Long26 extends Long
   Long: Long26
     
-class Long14 extends Long
-  Long: Long14
+# class Long14 extends Long
+#   Long: Long14
     
-class Long15 extends Long
-  Long: Long15
+# class Long15 extends Long
+#   Long: Long15
     
 class Long28 extends Long
   Long: Long28
@@ -395,13 +395,13 @@ class Long29 extends Long
 class Long30 extends Long
   Long: Long30
 
-if Browser.name is 'Safari'
+if Platform.name is 'Safari'
   Long.initializeFunctions Functions30
 else
   Long.initializeFunctions Functions29
   
-Long14.initializeFunctions Functions14
-Long15.initializeFunctions Functions15
+#Long14.initializeFunctions Functions14
+#Long15.initializeFunctions Functions15
 Long26.initializeFunctions Functions26
 Long28.initializeFunctions Functions28
 Long29.initializeFunctions Functions29
@@ -473,15 +473,15 @@ class QuotientRing extends Long
 exports = exports or window
 
 defaultLong =
-  Chrome:  Long29
+  Chrome:  Long28
   Firefox: Long29
   Opera:   Long28
   Safari:  Long30
 
-exports.Long = defaultLong[Browser.name] or Long28
+exports.Long = defaultLong[Platform.name] or Long28
 
-exports.Long14 = Long14
-exports.Long15 = Long15
+#exports.Long14 = Long14
+#exports.Long15 = Long15
 exports.Long26 = Long26
 exports.Long28 = Long28
 exports.Long29 = Long29

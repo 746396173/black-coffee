@@ -7,7 +7,7 @@
 <script src="../lib/jsbn/prng4.js"></script>
 <script src="../lib/jsbn/rng.js"></script>
 
-<script src="../browser.js"></script>
+<script src="../platform.js"></script>
 <script src="../math/functions-14-bit.js"></script>
 <script src="../math/functions-15-bit.js"></script>
 <script src="../math/functions-26-bit.js"></script>

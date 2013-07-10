@@ -1,6 +1,15 @@
-# Derived from http://www.quirksmode.org/js/detect.html.
-# 
-browserAssay = [
+# Originally derived from http://www.quirksmode.org/js/detect.html.
+#
+exports = (if window? then window.Platform = new Object else module.exports)
+  
+if not navigator? then navigator = new Object
+
+platformAssay = [
+    name: 'Node'
+    datum: if process? then process.title + '/' + process.versions.node else ''
+    pattern: 'node'
+    versionPattern: 'node/(\\d+\\.\\d+\\.\\d+)'    
+  ,
     name: 'Chrome'
     datum: navigator.userAgent
     pattern: 'Chrome'
@@ -65,7 +74,7 @@ browserAssay = [
 ]
 
 specifier = do () ->
-  for trial in browserAssay
+  for trial in platformAssay
     if (String trial.datum).match trial.pattern
       return trial
 
@@ -78,7 +87,7 @@ specifier = do () ->
 if specifier.versionPattern
   m = (String specifier.datum).match specifier.versionPattern
   if m?
-    specifier.version = parseFloat m[1]
+    specifier.version = m[1]
 
 OSAssay = [
     name: 'Windows'
@@ -96,16 +105,21 @@ OSAssay = [
     name: 'Linux'
     datum: navigator.platform
     pattern: 'Linux'
+  ,
+    name: 'OS/X'
+    datum: if process? then process.platform else ''
+    pattern: 'darwin'
 ]
 
 do () ->
   for trial in OSAssay
-    if trial.datum.match trial.pattern
+    if (String trial.datum).match trial.pattern
       specifier.os = trial.name
 
-window.Browser =
+exports.Platform =
   name:      specifier.name
   version:   specifier.version
   os:        specifier.os
   specifier: specifier
-  
+
+return exports

@@ -23,8 +23,12 @@ for width in [14, 15, 26, 28, 29, 30]
     half_baseB:  '0x' + half_baseB.toString 16
     half_maskB:  '0x' + (half_baseB - 1).toString 16
 
+  parity_adjust_expr = if width & 1 then ' << 1' else ''
+
   skipRE   = /%% Begin Remove for Specialize %%/
   unskipRE = /%% End Remove for Specialize %%/
+
+  parityRE = /\s*<<\s*\__parity__/g
   targetRE = /__(width|base|base2|mask|half_widthA|half_baseA|half_maskA|half_widthB|half_baseB|half_maskB)__/g
   result = []
   skip = false
@@ -32,6 +36,7 @@ for width in [14, 15, 26, 28, 29, 30]
     if      x.match skipRE   then skip = true
     else if x.match unskipRE then skip = false
     else if not skip
+      x = x.replace parityRE, parity_adjust_expr
       result.push x.replace targetRE, (match, keyword) -> codex[keyword]
 
   fs.writeFileSync 'functions-' + width + '-bit.coffee', result.join '\n'

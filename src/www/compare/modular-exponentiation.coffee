@@ -60,8 +60,15 @@ $ () ->
     
     dataTypes:    ['Long26', 'Long28', 'Long29', 'Long30']
     bitLengths:   [1024, 1280, 1536, 1792, 2048, 2304, 2560, 2816, 3072]    
-#    bitLengths:   [8, 16, 32, 64, 128, 256, 512]
-#    bitLengths:   [8, 16, 32, 64, 128]
+#     bitLengths:   [8, 16, 32, 64, 128, 256, 512]
+#     bitLengths:   [8, 16, 32, 64, 128]
+#     bitLengths:   [8, 16, 32, 64]
+#     bitLengths:   [8, 16, 32]
+#     bitLengths:   [36, 40, 44, 48, 52, 56, 60]
+#     bitLengths:   [36, 40, 44, 48]
+#     bitLengths:   [49, 50, 51]
+#     bitLengths:   [52]
+    
 #    bitLengths:   [52, 56, 60, 64]
 #    bitLengths:   [26, 28, 30, 32]
 #    bitLengths:   [8, 9, 10, 11, 12, 13, 14, 15, 16]
@@ -155,7 +162,6 @@ $ () ->
 
   class Chart extends DataTypeComparisonChart
     standardLong = Long.prototype.constructor.name
-    E = 65537
     
     title:        'Relative Computation Time by Digit Width \u2014 Large Exponent'
     container:    'large_exponent_digit_width_chart'
@@ -164,10 +170,10 @@ $ () ->
     yAxisTitle:   standardLong + ' = 1.0'
     
     dataTypes:    ['Long26', 'Long28', 'Long29', 'Long30']
-    dataTypes:    ['Long28', 'Long29', 'Long30']
-    bitLengths:   [1024, 1280]#, 1536, 1792, 2048, 2304, 2560, 2816, 3072]
-    bitLengths:   [912, 928, 944, 960, 976, 992, 1008]
-#    bitLengths:   [8, 16, 32, 64, 128, 256, 512]
+    bitLengths:   [1024, 1280, 1536, 1792, 2048, 2304, 2560, 2816, 3072]
+#    bitLengths:   [912, 928, 944, 960, 976, 992, 1008]
+#    bitLengths:   [768]
+    bitLengths:   [8, 16, 32, 64, 128, 256, 512]
 #    bitLengths:   [8, 16, 32, 64, 128]
 #    bitLengths:   [52, 56, 60, 64]
 #    bitLengths:   [26, 28, 30, 32]
@@ -176,12 +182,6 @@ $ () ->
     blockSize:    1
     warmUpLength: 1
     
-    exp:
-      Long26:   new Long26 E
-      Long28:   new Long28 E
-      Long29:   new Long29 E
-      Long30:   new Long30 E
-      
     operators:
       Long26:     (A) -> A[j].powmod @exp.Long26, @M.Long26 for j in [0...A.length]
       Long28:     (A) -> A[j].powmod @exp.Long28, @M.Long28 for j in [0...A.length]
@@ -207,7 +207,7 @@ $ () ->
         Long28:   new Long28 M
         Long29:   new Long29 M
         Long30:   new Long30 M
-      
+
       super L, N
 
     getData: () ->
@@ -218,8 +218,10 @@ $ () ->
     reportConsistencyFailure: (j) ->
       super j
       @report 'base: (' + @standardLong + ') ' + @M[@standardLong].digits
+      for name, E of @exp
+        @report 'exp: ' + name + ': ' + E.digits
       
-    new this
+    window.chart = new this
 
 
   class Chart extends DataTypeComparisonChart
@@ -678,3 +680,130 @@ $ () ->
 # charts.js:582Relative Computation Time by Digit Width — Large Exponent[1]:   Long29:     282844763581265176388196243216145828532992563999184673125153286591564243179679996125421885284985982932948723211875618195172577877612557929988755215849324154263351481781494674949659523651992912485748378845338696223962236617388357619793825443356184949235711318426448998217737354284117794315232263164471991396199657693765289583351118899998698717642496558257578628867157768443962364719135361196149664723996118
 # charts.js:582Relative Computation Time by Digit Width — Large Exponent[1]:   Long30:     282844763581265176388196243216145828532992563999184673125153286591564243179679996125421885284985982932948723211875618195172577877612557929988755215849324154263351481781494674949659523651992912485748378845338696223962236617388357619793825443356184949235711318426448998217737354284117794315232263164471991396199657693765289583351118899998698717642496558257578628867157768443962364719135361196149664723996118
 # charts.js:582Relative Computation Time by Digit Width — Large Exponent[1]: base: (Long30) 870196865,841955907,941765336,685321124,176015359,827748770,206621214,823963446,122815288,581311655,515544226,896542040,999743846,859556083,235194764,480390626,496626273,934483386,448742797,626126375,859694818,523639728,859448152,773626548,328560715,1019332111,256374092,231472414,594147520,41289502,323611976,213789540,395857980,336145235,53039896,773264720,510055823,1024203630,1073173889,973221358,208754152,14417471,705655018,113855239,665842377,924943992,32676962,433013654,449994505,286785302,37532786,9
+#
+#
+# Long26: op0: 46124956,64697217,0
+# Long28: op0: 113233820,16174304
+# Long29: op0: 113233820,8087152
+# Long30: op0: 113233820,4043576
+# Result Digits:
+#   Long26:     61058768,1003061
+#   Long28:     167044412,6101892
+#   Long29:     167044412,6101892,0
+#   Long30:     167044412,6101892,0
+# Result Hex:
+#   Long26:     269257197989584
+#   Long28:     1637964328527164
+#   Long29:     1637964328527164
+#   Long30:     1637964328527164
+# base: (Long28) 92195631,10173359
+#
+#   x = new Long28 [113233820,16174304]
+#   m = new Long28 [92195631,10173359]
+
+#   x26 = new Long26 x
+#   m26 = new Long26 m
+
+#   t = x.msb()
+#   while t >= 0
+#     if x.bit t
+#       x.bitset t, 0
+#       x26.bitset t, 0
+
+#       y = x.powmod 65537, m
+#       y26 = x26.powmod 65537, m26
+
+#       if y.eq y26
+#         x.bitset t, 1
+#         x26.bitset t, 1
+        
+#     t--
+
+#   window.x = x
+#   window.m = m
+#   window.x26 = x26
+#   window.m26 = m26
+
+# x.digits
+# [77548440, 15911104]
+# x26.digits
+# [10439576, 63644417, 0]
+
+#   x = new Long28 [77548440, 15911104]
+#   m = new Long28 [92195631,10173359]
+
+#   x26 = new Long26 x
+#   m26 = new Long26 m
+
+#   console.log 'Long26'
+#   x26.powmod 65537, m26
+  
+#   console.log 'Long28'
+#   x.powmod 65537, m
+#
+# Long26
+# 0 578d10f208069
+# sq 5b78d85b3c044
+# sq 91b7720edefda
+# sq 7fbce23c5f2b2
+# sq 8c4134757109a
+# sq 3a068862dfde8
+# sq 5db5195c1e0ff
+# sq 94aea732e2e20
+# sq 4a8e17946fb2f <--
+# sq 36efdb60daf83
+# sq 5dbce102e1b0
+# sq 25a9bf3ed721e
+# sq 42c7234ccb57f
+# sq 89e4edf11e990
+# sq 890114e9da09d
+# sq 270acbd57f59f
+# sq 954f6e7194f39
+# mul 1359432c47414
+# Long28
+# 0 578d10f208069
+# sq 5b78d85b3c044
+# sq 91b7720edefda
+# sq 7fbce23c5f2b2
+# sq 8c4134757109a
+# sq 3a068862dfde8
+# sq 5db5195c1e0ff
+# sq 94aea732e2e20
+# sq 4a8e17946fb2f <--
+# sq 836f12829f1b
+# sq 42363a11fb5be
+# sq 2e1540a88edcf
+# sq 4fa056a31f250
+# sq 8759eb4933387
+# sq 6170169fb8e44
+# sq 2ce7c78f4cc2e
+# sq 5b6fc499f1059
+# mul 4bd5df017459c
+
+#   x28 = new Long28 '0x4a8e17946fb2f'
+#   m28 = new Long28 [92195631,10173359]
+
+#   x = new Long26 x28
+#   m = new Long26 m28
+#   ms = m.digits
+
+#   { _cofactorMont, _liftMont, _mulMont, _sqMont } = Long26
+#   w = _cofactorMont ms
+
+#   t = x.msb()
+#   while t >= 0
+#     if x.bit t
+#       x.bitset t, 0
+
+#       y = x.sqmod m
+#       z = new Long26 _mulMont (_sqMont (_liftMont x.digits, ms), ms, w), [1], ms, w
+
+#       if y.eq z
+#         x.bitset t, 1
+
+#     t--
+
+#   window.x = x
+#   window.m = m
+#   window.w = w
+#

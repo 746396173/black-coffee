@@ -7,6 +7,7 @@
 <script src="../lib/jsbn/prng4.js"></script>
 <script src="../lib/jsbn/rng.js"></script>
 
+<script>window.require = function () { return new Object }</script>
 <script src="../platform.js"></script>
 <script src="../math/functions-14-bit.js"></script>
 <script src="../math/functions-15-bit.js"></script>
@@ -84,11 +85,10 @@ Modulus
 
 
 <p>
-  <div id="modulus_group">
+  <div id="implementation_chart">
     <p>
       <span class="link">
-	Compute and show chart comparing running time of ordinary multiplication by BigInt, jsbn,
-	and Long.
+	Compute and show a chart comparing the running time of each library.
       </span>
       <span class="consistency_error">
 	Computation halted: inconsistent results in comparison.  View console for details.
@@ -100,11 +100,10 @@ Modulus
 </p>
 
 <p>
-  <div id="digit_size_group">
+  <div id="digit_width_chart">
     <p>
       <span class="link">
-	Compute and show chart comparing running time of ordinary multiplication by Longs with various
-	digit sizes.
+	Compute and show chart comparing running time of Longs with various digit widths.
       </span>
       <span class="consistency_error">
 	Computation halted: inconsistent results in comparison.  View console for details.

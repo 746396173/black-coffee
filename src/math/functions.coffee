@@ -355,7 +355,7 @@ _add = (xs, ys, k) ->
 
 __add = (xs, j, ys, i, c, n) ->
   while --n >= 0
-    w = ys[i++] + xs[j] + c
+    w = (ys[i++]|0) + (xs[j]|0) + c | 0
     c = w >>> __width__
     xs[j++] = w & __mask__
 
@@ -403,12 +403,17 @@ _sub = (xs, ys, k) ->
 
 # Use with digits <= 15 bits wide
 __addmul_SmallDigit = (xs, j, t, ys, i, c, n) ->
+  t |= 0
   while --n >= 0
     x_j = (xs[j]|0) + t * (ys[i++]|0) + c | 0
     c = x_j >>> __width__
     xs[j++] = x_j & __mask__
 
-  c
+  while x_j >= __base__
+    x_j = (xs[j]|0) + (x_j >>> __width__) | 0
+    xs[j++] = x_j & __mask__
+    
+  xs
 
 # Use with digits of even width > 15 bits   
 __addmul_LargeDigit = (xs, j, t, ys, i, c, n) ->
@@ -418,11 +423,18 @@ __addmul_LargeDigit = (xs, j, t, ys, i, c, n) ->
     y_l = ys[i] & __half_maskB__
     y_h = ys[i++] >>> __half_widthB__
     m = t_h * y_l + (y_h * t_l << __parity__) | 0
-    l = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + c | 0
-    c = (l >>> __width__) + (m >>> __half_widthB__) + t_h * y_h | 0
-    xs[j++] = l & __mask__
+    x_j = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + c | 0
+    c = (x_j >>> __width__) + (m >>> __half_widthB__) + t_h * y_h | 0
+    xs[j++] = x_j & __mask__
 
-  c
+  x_j = (xs[j]|0) + c | 0
+  xs[j++] = x_j & __mask__
+  while x_j >= __base__
+    x_j = (xs[j]|0) + (x_j >>> __width__) | 0
+    xs[j++] = x_j & __mask__
+
+  xs
+
 
 # Use with digits of even width > 15 bits
 __addmul_WithCarryMask = (xs, j, t, ys, i, c, n) ->
@@ -432,64 +444,15 @@ __addmul_WithCarryMask = (xs, j, t, ys, i, c, n) ->
     y_l = ys[i] & __half_maskB__
     y_h = ys[i++] >>> __half_widthB__
     m = t_h * y_l + (y_h * t_l << __parity__) | 0
-    l = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + (c & __mask__) | 0
-    c = (l >>> __width__) + (m >>> __half_widthB__) + t_h * y_h + (c >>> __width__) | 0
-    xs[j++] = l & __mask__
-
-  c
-
-__addmul0_SmallDigit = (xs, t, ys, n) ->
-  i = j = c = 0
-  while --n >= 0
-    x_j = (xs[j]|0) + t * (ys[i++]|0) + c | 0
-    c = x_j >>> __width__
+    x_j = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + (c & __mask__) | 0
+    c = (x_j >>> __width__) + (m >>> __half_widthB__) + t_h * y_h + (c >>> __width__) | 0
     xs[j++] = x_j & __mask__
 
-  xs[j] = (xs[j]|0) + c | 0
-
-  while xs[j] >= __base__
-    xs[j+1] = (xs[j+1]|0) + (xs[j] >>> __width__) | 0
-    xs[j++] &= __mask__
-
-  xs
-
-__addmul0_LargeDigit = (xs, t, ys, n) ->
-  t_l = t & __half_maskA__
-  t_h = t >>> __half_widthA__
-  i = j = c = 0
-  while --n >= 0
-    y_l = ys[i] & __half_maskB__
-    y_h = ys[i++] >>> __half_widthB__
-    m = t_h * y_l + (y_h * t_l << __parity__) | 0
-    l = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + c | 0
-    c = (l >>> __width__) + (m >>> __half_widthB__) + t_h * y_h | 0
-    xs[j++] = l & __mask__
-
-  xs[j] = (xs[j]|0) + c | 0
-
-  while xs[j] >= __base__
-    xs[j+1] = (xs[j+1]|0) + (xs[j] >>> __width__) | 0
-    xs[j++] &= __mask__
-
-  xs
-
-__addmul0_WithCarryMask = (xs, t, ys, n) ->
-  t_l = t & __half_maskA__
-  t_h = t >>> __half_widthA__
-  i = j = c = 0
-  while --n >= 0
-    y_l = ys[i] & __half_maskB__
-    y_h = ys[i++] >>> __half_widthB__
-    m = t_h * y_l + (y_h * t_l << __parity__) | 0
-    l = t_l * y_l + ((m & __half_maskB__) << __half_widthA__) + (xs[j]|0) + (c & __mask__) | 0
-    c = (l >>> __width__) + (m >>> __half_widthB__) + t_h * y_h + (c >>> __width__) | 0
-    xs[j++] = l & __mask__
-
-  xs[j] = (xs[j]|0) + c | 0
-
-  while xs[j] >= __base__
-    xs[j+1] = (xs[j+1]|0) + (xs[j] >>> __width__) | 0
-    xs[j++] &= __mask__
+  x_j = (xs[j]|0) + c | 0
+  xs[j++] = x_j & __mask__
+  while x_j >= __base__
+    x_j = (xs[j]|0) + (x_j >>> __width__) | 0
+    xs[j++] = x_j & __mask__
 
   xs
 
@@ -507,7 +470,7 @@ _mul_SmallDigit = (xs, ys) ->
       k = j
       n = n_ys
       while --n >= 0
-        z_j = (zs[j]|0) + x_j * ys[i++] + c
+        z_j = (zs[j]|0) + x_j * ys[i++] + c | 0
         c = z_j >>> __width__
         zs[j++] = z_j & __mask__
       zs[j] = c
@@ -530,9 +493,9 @@ _mul_LargeDigit = (xs, ys) ->
       while --n >= 0
         yl_i = ys[i] & __half_maskB__
         yh_i = ys[i++] >>> __half_widthB__
-        m = x_h * yl_i + (yh_i * x_l << __parity__)
-        z_j = (zs[j]|0) + x_l*yl_i + ((m & __half_maskB__) << __half_widthA__) + c
-        c = (z_j >>> __width__) + (m >>> __half_widthB__) + x_h*yh_i
+        m = x_h * yl_i + (yh_i * x_l << __parity__) | 0
+        z_j = (zs[j]|0) + x_l*yl_i + ((m & __half_maskB__) << __half_widthA__) + c | 0
+        c = (z_j >>> __width__) + (m >>> __half_widthB__) + x_h*yh_i | 0
         zs[j++] = z_j & __mask__
       zs[j] = c
   _trim zs
@@ -555,9 +518,9 @@ _mul_WithCarryMask = (xs, ys) ->
       while --n >= 0
         yl_i = ys[i] & __half_maskB__
         yh_i = ys[i++] >>> __half_widthB__
-        m = x_h*yl_i + (yh_i * x_l << __parity__)
-        z_j = (zs[j]|0) + x_l*yl_i + ((m & __half_maskB__) << __half_widthA__) + (c & __mask__)
-        c = (z_j >>> __width__) + (m >>> __half_widthB__) + x_h*yh_i + (c >>> __width__)
+        m = x_h*yl_i + (yh_i * x_l << __parity__) | 0
+        z_j = (zs[j]|0) + x_l*yl_i + ((m & __half_maskB__) << __half_widthA__) + (c & __mask__) | 0
+        c = (z_j >>> __width__) + (m >>> __half_widthB__) + x_h*yh_i + (c >>> __width__) | 0
         zs[j++] = z_j & __mask__
       zs[j] = c
   _trim zs
@@ -565,17 +528,14 @@ _mul_WithCarryMask = (xs, ys) ->
 
 if __width__ <= 15
   __addmul = __addmul_SmallDigit
-  __addmul0 = __addmul0_SmallDigit
   _mul = _mul_SmallDigit
   
 else if __width__ <= 29
   __addmul = __addmul_LargeDigit
-  __addmul0 = __addmul0_LargeDigit
   _mul = _mul_LargeDigit
 
 else
   __addmul = __addmul_WithCarryMask
-  __addmul0 = __addmul0_WithCarryMask
   _mul = _mul_WithCarryMask
 
   
@@ -614,20 +574,18 @@ _kmul.Threshold = Infinity
 _sq = do (__addmul, _empty) ->
   (xs) ->
     i = 0
-    j = n = xs.length
+    n = xs.length
     zs = _empty.slice 0, 2*n
 
     while n > 1
-      c = __addmul zs, 2*i, xs[i], xs, i, 0, 1
-      if (zs[j] = (zs[j]|0) + __addmul zs, 2*i + 1, xs[i] << 1, xs, i + 1, c, --n) >= __base__
-        zs[j+1] = (zs[j+1]|0) + (zs[j] >>> __width__)
-        zs[j] &= __mask__
+      __addmul zs, 2*i, xs[i], xs, i, 0, 1
+      __addmul zs, 2*i + 1, xs[i] << 1, xs, i + 1, 0, --n
       i++
-      j++
 
     if n > 0
-      zs[j] = (zs[j]|0) + __addmul zs, 2*i, xs[i], xs, i, 0, 1
+      __addmul zs, 2*i, xs[i], xs, i, 0, 1
 
+    j = zs.length-1
     while zs[j] == 0 then j--
     zs.length = j+1 if zs.length-1 > j
 
@@ -686,6 +644,8 @@ _ksq.Threshold = 75
 # handled by the caller.
 #
 __divmod = do (__add, __addmul, _lt, _size, _sub) ->
+  pow2_52 = pow 2, 52
+  
   (xs, ys) ->
     i = (_size xs)-1
     t = (_size ys)-1
@@ -698,27 +658,24 @@ __divmod = do (__add, __addmul, _lt, _size, _sub) ->
 
     # 14.20.1
     # 14.20.2
-    qs = []
     if not _lt xs, ys, k
       _sub xs, ys, k
-      qs[k] = 1
+      xs[i+1] = 1
 
     # 52 is the IEEE floating point standard mantissa length in bits (64 bit double)
-    if __width__ >= 26
-      ys_t = (ys_t0 * (1 << 52 - __width__)) + (ys[t-1] >>> 2 * __width__ - 52)
+    if __width__ * (t + 1) > 52
+      ds = _bshr ys.slice(), __width__ * (t + 1) - 52
     else
-      digits = ceil 52/__width__
-      if digits > ys.length
-        ys_t = _value _bshl ys.slice(), 52 - __width__ * ys.length
-      else
-        ys_t = _value _bshr (ys.slice -digits), __width__ * digits - 52
+      ds = _bshl ys.slice(), 52 - __width__ * (t + 1)
 
-    d1 = (pow 2, 52)/ys_t
-    d2 = (pow 2, 52 - __width__)/ys_t
-    e = pow 2, 2 * __width__ - 52
+    d = _value ds
+
+    c1 = pow2_52/d
+    c2 = (pow 2, 52 - __width__)/d
+    e = 1 << max 0, 2 * __width__ - 52
 
     # create local namespace for speedy access to loop variables
-    do (xs, neg_ys, qs, i, k, ys_t0, d1, d2, e, __addmul, __add) ->
+    do (xs, neg_ys, i, k, ys_t0, c1, c2, e, __addmul, __add) ->
       n = t + 1
 
       # 14.20.3
@@ -729,22 +686,23 @@ __divmod = do (__add, __addmul, _lt, _size, _sub) ->
         if x_i == ys_t0
           # __base__ - 1... highest digit value
           q_i = __mask__
-
+          
         else
-          q_i = x_i * d1 + (xs[i-1] + e) * d2 & __mask__
+          q_i = (min x_i * c1 + (xs[i-1] + e) * c2, __mask__) | 0
 
-        if xs[i] = x_i + (__addmul xs, k, q_i, neg_ys, 0, 0, n) - q_i
-          xs[i] += (__add xs, k, ys, 0, 0, n) + 1
+        __addmul xs, k, q_i, neg_ys, 0, 0, n
+        if xs[i] != q_i
+          xs[i] += (__add xs, k, ys, 0, 0, n) - 1 | 0
           q_i--
 
+        if xs[i] != q_i
+          throw 'optimization failed'
         i--
-        qs[k] = q_i
 
       null
 
-    xs.length = t + 1
     # 14.20.3.4-5
-    [qs, xs]
+    [(xs.slice t + 1), xs.slice 0, t + 1]
 
 
 _divmod = do (_bshl, _bshr, __divmod, _size) ->
@@ -838,11 +796,43 @@ _cofactorMontB = (ms) ->
 
 _liftMont = do (_mod, _shl) -> (xs, ms) -> _mod (_shl xs.slice(), ms.length), ms
 
-_reduceMont = do (_lt, _shr, _sub, _trim, _empty) ->
+_reduceMontSmallDigit = do (_lt, _shr, _sub, _trim, _empty) ->
 
   # computes xs * R^-1 mod ms
   (xs, ms, W) ->
-    addmul0 = __addmul0
+    addmul = __addmul
+    W |= 0
+
+    n_ms = ms.length
+
+    i = 0
+    zs = _empty.slice 0, 2 + 2*n_ms
+    while i < n_ms
+      z = zs[0] = (zs[0]|0) + xs[i++] & -1
+      j = 0
+      while zs[j] >= __base__
+        zs[j+1] = (zs[j+1]|0) + (zs[j] >>> __width__)
+        zs[j++] &= __mask__
+
+      # Montgomery reduction step
+      z_l = zs[0] & __half_maskB__
+      z_h = zs[0] >>> __half_widthB__
+
+      u_i = W * z & __mask__
+      addmul zs, 0, u_i, ms, 0, 0, n_ms
+
+      #_shr zs, 1
+      zs.shift()
+
+    _sub zs, ms if not _lt zs, ms
+    zs.length = n_ms
+    zs
+    
+_reduceMontLargeDigit = do (_lt, _shr, _sub, _trim, _empty) ->
+
+  # computes xs * R^-1 mod ms
+  (xs, ms, W) ->
+    addmul = __addmul
     W_l = W & __half_maskA__
     W_h = W >>> __half_widthA__
 
@@ -862,7 +852,7 @@ _reduceMont = do (_lt, _shr, _sub, _trim, _empty) ->
       z_h = zs[0] >>> __half_widthB__
 
       u_i = W_l * z_l + (((W_l * z_h << __parity__) + W_h * z_l & __half_maskB__) << __half_widthA__) & __mask__
-      addmul0 zs, u_i, ms, n_ms
+      addmul zs, 0, u_i, ms, 0, 0, n_ms
 
       #_shr zs, 1
       zs.shift()
@@ -871,7 +861,11 @@ _reduceMont = do (_lt, _shr, _sub, _trim, _empty) ->
     zs.length = n_ms
     zs
 
-
+if __width__ <= 15
+  _reduceMont = _reduceMontSmallDigit
+  
+else
+  _reduceMont = _reduceMontLargeDigit
 
 # This is a hybrid of HAC 14.36 (Montgomery Multiplication) and HAC 14.16 (Multiple Precision
 # Squaring).  It is has about 75% of the running time of the equivalent functionality using
@@ -881,7 +875,6 @@ _sqMontA = do (_lt, _sub, _empty) ->
   # computes xs * xs * R^-1 mod ms
   (xs, ms, W) ->
     addmul = __addmul
-    addmul0 = __addmul0
     
     W_l = W & __half_maskA__
     W_h = W >>> __half_widthA__
@@ -908,11 +901,7 @@ _sqMontA = do (_lt, _sub, _empty) ->
         zs[j+1] = (zs[j+1]|0) + (zs[j] >>> __width__)
         zs[j++] &= __mask__
 
-      # zs[i + j] <-- zs[i + j] + xs[i] * xs[j] for j in i+1...n_ms
-      j = n_ms + i
-      if (zs[j] = (zs[j]|0) + (addmul zs, 2*i+1, x_i << 1, xs, i+1, 0, --n) | 0) >= __base__
-        zs[j+1] = (zs[j+1]|0) + (zs[j] >>> __width__)| 0
-        zs[j] &= __mask__
+      addmul zs, 2*i+1, x_i << 1, xs, i+1, 0, --n
 
       # Montgomery reduction step
       z_l = zs[i] & __half_maskB__
@@ -920,12 +909,7 @@ _sqMontA = do (_lt, _sub, _empty) ->
 
       u_i = W_l * z_l + (((W_l * z_h << __parity__) + W_h * z_l & __half_maskB__) << __half_widthA__) & __mask__
         
-      j = i + n_ms
-      zs[j] = (zs[j]|0) + (addmul zs, i, u_i, ms, 0, 0, n_ms) | 0
-
-      while zs[j] >= __base__
-        zs[j+1] = (zs[j+1]|0) + (zs[j] >>> __width__) | 0
-        zs[j++] &= __mask__
+      addmul zs, i, u_i, ms, 0, 0, n_ms
 
       i++
 
@@ -943,11 +927,50 @@ _sqMontA = do (_lt, _sub, _empty) ->
 # Squaring).  It is has about 75% of the running time of the equivalent functionality using
 # _mulMont below.
 # 
-_sqMont = do (_lt, _sub, _empty) ->
+_sqMontSmallDigit = do (_lt, _sub, _empty) ->
   # computes xs * xs * R^-1 mod ms
   (xs, ms, W) ->
     addmul = __addmul
-    addmul0 = __addmul0
+    
+    W |= 0
+    
+    i = 0
+    n = n_ms = ms.length
+    zs = _empty.slice 0, 2 * n_ms + 2
+
+    while n > 0
+      x_i = xs[i]|0
+      z_i = (zs[i]|0) + x_i*x_i | 0
+      zs[i++] = z_i & __mask__
+
+      # propagate carries
+      j = i
+      z_j =  (zs[j]|0) + (z_i >>> __width__) | 0
+      while z_j >= __base__
+        z_j = (zs[j]|0) + (z_j >>> __width__) | 0
+        zs[j++] = z_j & __mask__
+
+      addmul zs, i, x_i << 1, xs, i, 0, --n
+
+      # Montgomery reduction step
+      addmul zs, 0, W * z_i | 0, ms, 0, 0, n_ms
+
+      #_shr zs, 1
+      zs.shift()
+      
+    _sub zs, ms if not _lt zs, ms
+    zs.length = n_ms
+    zs
+
+
+# This is a hybrid of HAC 14.36 (Montgomery Multiplication) and HAC 14.16 (Multiple Precision
+# Squaring).  It is has about 75% of the running time of the equivalent functionality using
+# _mulMont below.
+# 
+_sqMontLargeDigitA = do (_lt, _sub, _empty) ->
+  # computes xs * xs * R^-1 mod ms
+  (xs, ms, W) ->
+    addmul = __addmul
     
     W_l = W & __half_maskA__
     W_h = W >>> __half_widthA__
@@ -974,10 +997,7 @@ _sqMont = do (_lt, _sub, _empty) ->
         zs[j+1] = (zs[j+1]|0) + (zs[j] >>> __width__)
         zs[j++] &= __mask__
 
-      # zs[i + j] <-- zs[i + j] + xs[i] * xs[j] for j in i+1...n_ms
-      if (zs[n_ms] = (zs[n_ms]|0) + (addmul zs, i, x_i << 1, xs, i, 0, --n) | 0) >= __base__
-        zs[n_ms+1] = (zs[n_ms+1]|0) + (zs[n_ms] >>> __width__)| 0
-        zs[n_ms] &= __mask__
+      addmul zs, i, x_i << 1, xs, i, 0, --n
 
       # Montgomery reduction step
       z_l = zs[0] & __half_maskB__
@@ -985,7 +1005,7 @@ _sqMont = do (_lt, _sub, _empty) ->
 
       u_i = W_l * z_l + (((W_l * z_h << __parity__) + W_h * z_l & __half_maskB__) << __half_widthA__) & __mask__
         
-      addmul0 zs, u_i, ms, n_ms
+      addmul zs, 0, u_i, ms, 0, 0, n_ms
 
       #_shr zs, 1
       zs.shift()
@@ -994,6 +1014,66 @@ _sqMont = do (_lt, _sub, _empty) ->
     zs.length = n_ms
     zs
 
+
+# This is a hybrid of HAC 14.36 (Montgomery Multiplication) and HAC 14.16 (Multiple Precision
+# Squaring).  It is has about 75% of the running time of the equivalent functionality using
+# _mulMont below.
+# 
+_sqMontLargeDigit = do (_lt, _sub, _empty) ->
+  # computes xs * xs * R^-1 mod ms
+  (xs, ms, W) ->
+    addmul = __addmul
+    
+    W_l = W & __half_maskA__
+    W_h = W >>> __half_widthA__
+    
+    i = 0
+    n = n_ms = ms.length
+    zs = _empty.slice 0, 3 * n_ms + 2
+
+    while n > 0
+      x_i = xs[i] & -1
+
+      # zs[i] <-- zs[i] + xs[i]^2
+      xi_l = x_i & __half_maskB__
+      xi_h = x_i >>> __half_widthB__
+      
+      m = (xi_h * xi_l) << 1
+      l = xi_l * xi_l + ((m & __half_maskA__) << __half_widthB__) + (zs[2*i]|0)
+      zs[2*i] = l & __mask__
+
+      # propagate carries
+      j = 2*i+1
+      zs[j] = (zs[j]|0) + (l >>> __width__) + (m >>> __half_widthA__) + (xi_h * xi_h << __parity__)
+      while zs[j] >= __base__
+        zs[j+1] = (zs[j+1]|0) + (zs[j] >>> __width__)
+        zs[j++] &= __mask__
+
+      addmul zs, 2*i+1, x_i << 1, xs, i+1, 0, --n
+
+      # Montgomery reduction step
+      z_l = zs[i] & __half_maskB__
+      z_h = zs[i] >>> __half_widthB__
+
+      u_i = W_l * z_l + (((W_l * z_h << __parity__) + W_h * z_l & __half_maskB__) << __half_widthA__) & __mask__
+        
+      addmul zs, i, u_i, ms, 0, 0, n_ms
+
+#      _shr zs, 1
+      i++
+#      zs.shift()
+
+    _shr zs, n_ms
+    _sub zs, ms if not _lt zs, ms
+    zs.length = n_ms
+    zs
+
+
+if __width__ <= 15
+  _sqMont = _sqMontSmallDigit
+  
+else
+  _sqMont = _sqMontLargeDigit
 
 
 _mulMont = do (_lt, _shr, _sub, _trim, _empty) ->
@@ -1026,17 +1106,8 @@ _mulMont = do (_lt, _shr, _sub, _trim, _empty) ->
 
       u_i = W_l * z_l + (((W_l * z_h << __parity__) + W_h * z_l & __half_maskB__) << __half_widthA__) & __mask__
 
-      j = i + n_ys
-      if (zs[j] = (zs[j]|0) + (addmul zs, i, x_i, ys, 0, 0, n_ys) | 0) >= __base__
-        zs[j+1] = (zs[j+1]|0) + (zs[j] >>> __width__) | 0
-        zs[j] &= __mask__
-
-      j = i + n_ms
-      zs[j] = (zs[j]|0) + (addmul zs, i, u_i, ms, 0, 0, n_ms) | 0
-
-      while zs[j] >= __base__
-        zs[j+1] = (zs[j+1]|0) + (zs[j] >>> __width__) | 0
-        zs[j++] &= __mask__
+      addmul zs, i, x_i, ys, 0, 0, n_ys
+      addmul zs, i, u_i, ms, 0, 0, n_ms
 
       i++
       #_shr zs, 1
@@ -1051,7 +1122,7 @@ _mulMontA = do (_lt, _shr, _sub, _trim, _empty) ->
 
   # computes xs * ys * R^-1 mod ms
   (xs, ys, ms, W) ->
-    addmul0 = __addmul0
+    addmul = __addmul
     W_l = W & __half_maskA__
     W_h = W >>> __half_widthA__
 
@@ -1077,8 +1148,8 @@ _mulMontA = do (_lt, _shr, _sub, _trim, _empty) ->
 
       u_i = W_l * z_l + (((W_l * z_h << __parity__) + W_h * z_l & __half_maskB__) << __half_widthA__) & __mask__
 
-      addmul0 zs, x_i, ys, n_ys
-      addmul0 zs, u_i, ms, n_ms
+      addmul zs, 0, x_i, ys, 0, 0, n_ys
+      addmul zs, 0, u_i, ms, 0, 0, n_ms
 
       #_shr zs, 1
       zs.shift()
@@ -1317,7 +1388,8 @@ _simplePowMont = do (_mulMont, _sqMont) ->
         i += __width__
         d = ys[--j]
 
-      zs = _sqMont zs, ms, W
+      zs = _mulMont zs, zs, ms, W
+      #zs = _sqMont zs, ms, W
 
     # for large (>1024 bits) operands, there is no measurable difference between the two lines below.
     # In theory, they are equivalent, and the _reduceMont should be faster.  There is some indication
@@ -1475,7 +1547,7 @@ _powmod = do (_mod, _msb, _simplePowMont, _shl, _simplePowmod, _slidingWindowPow
       [1]
 
     else if t <= _powmod.SimplePowmodBitLimit
-      if false#Platform.name is 'Firefox'
+      if Platform.name is 'Firefox'
         W = _cofactorMont _trim ms
         _simplePowMont (_liftMont xs, ms), (_trim ys), ms, W, _liftMont [1], ms
       else

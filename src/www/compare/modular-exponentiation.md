@@ -9,6 +9,8 @@
 
 <script>window.require = function () { return new Object }</script>
 <script src="../platform.js"></script>
+<script src="../math/functions-14-bit.js"></script>
+<script src="../math/functions-15-bit.js"></script>
 <script src="../math/functions-26-bit.js"></script>
 <script src="../math/functions-28-bit.js"></script>
 <script src="../math/functions-29-bit.js"></script>

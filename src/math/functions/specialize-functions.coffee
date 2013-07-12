@@ -2,9 +2,16 @@ fs = require 'fs'
 
 pow = Math.pow
 
-lines = (String fs.readFileSync 'functions.coffee').split '\n'
+digitSize = process.argv[2]
 
-for width in [14, 15, 26, 28, 29, 30]
+lines = (String fs.readFileSync 'functions-' + digitSize + '.coffee').split '\n'
+
+widths = switch digitSize
+  when 'small'  then [14, 15]
+  when 'medium' then [26, 28, 29]
+  when 'large'  then [30]
+
+for width in widths
   base = 1 << width
   half_widthA = width >> 1
   half_baseA  = 1 << half_widthA

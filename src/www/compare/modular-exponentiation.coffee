@@ -8,8 +8,9 @@ $ () ->
     
     dataTypes:    ['BigInt', 'jsbn', 'Long']
     bitLengths:   [1024, 1280, 1536, 1792, 2048]
-#     bitLengths:   [8, 16, 32, 64, 128, 256, 512]
-#     bitLengths:   [8, 16, 32, 64, 128, 256]
+#    bitLengths:   [8, 16, 32, 64, 128, 256, 512]
+#    bitLengths:   [36, 40, 44, 48, 52, 56]
+#    bitLengths:   [58]
 #     bitLengths:   [256, 288, 320, 352, 384, 416, 448, 480]
 #     bitLengths:   [288, 320, 352, 384, 416, 448]
 #     bitLengths:   [452, 456, 460, 464, 468, 472, 476]
@@ -173,7 +174,7 @@ $ () ->
     bitLengths:   [1024, 1280, 1536, 1792, 2048, 2304, 2560, 2816, 3072]
 #    bitLengths:   [912, 928, 944, 960, 976, 992, 1008]
 #    bitLengths:   [768]
-    bitLengths:   [8, 16, 32, 64, 128, 256, 512]
+#    bitLengths:   [8, 16, 32, 64, 128, 256, 512]
 #    bitLengths:   [8, 16, 32, 64, 128]
 #    bitLengths:   [52, 56, 60, 64]
 #    bitLengths:   [26, 28, 30, 32]
@@ -780,30 +781,11 @@ $ () ->
 # sq 5b6fc499f1059
 # mul 4bd5df017459c
 
-#   x28 = new Long28 '0x4a8e17946fb2f'
-#   m28 = new Long28 [92195631,10173359]
-
-#   x = new Long26 x28
-#   m = new Long26 m28
-#   ms = m.digits
-
-#   { _cofactorMont, _liftMont, _mulMont, _sqMont } = Long26
-#   w = _cofactorMont ms
-
-#   t = x.msb()
-#   while t >= 0
-#     if x.bit t
-#       x.bitset t, 0
-
-#       y = x.sqmod m
-#       z = new Long26 _mulMont (_sqMont (_liftMont x.digits, ms), ms, w), [1], ms, w
-
-#       if y.eq z
-#         x.bitset t, 1
-
-#     t--
-
-#   window.x = x
-#   window.m = m
-#   window.w = w
-#
+  a = new Long(2)
+  a30 = new Long30(a)
+  m = new Long
+  m.bitset(57, 1)
+  m.bitset(0, 1)
+  m30 = new Long30(m)
+  a.powmod(88, m).toString()
+  a30.powmod(88, m).toString()

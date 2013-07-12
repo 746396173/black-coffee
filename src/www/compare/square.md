@@ -7,6 +7,7 @@
 <script src="../lib/jsbn/prng4.js"></script>
 <script src="../lib/jsbn/rng.js"></script>
 
+<script>window.require = function () { return new Object }</script>
 <script src="../platform.js"></script>
 <script src="../math/functions-14-bit.js"></script>
 <script src="../math/functions-15-bit.js"></script>

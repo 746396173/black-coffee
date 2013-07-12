@@ -380,11 +380,11 @@ class Long
 class Long26 extends Long
   Long: Long26
     
-# class Long14 extends Long
-#   Long: Long14
+class Long14 extends Long
+  Long: Long14
     
-# class Long15 extends Long
-#   Long: Long15
+class Long15 extends Long
+  Long: Long15
     
 class Long28 extends Long
   Long: Long28
@@ -400,8 +400,8 @@ if Platform.name is 'Safari'
 else
   Long.initializeFunctions Functions29
   
-#Long14.initializeFunctions Functions14
-#Long15.initializeFunctions Functions15
+Long14.initializeFunctions Functions14
+Long15.initializeFunctions Functions15
 Long26.initializeFunctions Functions26
 Long28.initializeFunctions Functions28
 Long29.initializeFunctions Functions29
@@ -480,8 +480,8 @@ defaultLong =
 
 exports.Long = defaultLong[Platform.name] or Long28
 
-#exports.Long14 = Long14
-#exports.Long15 = Long15
+exports.Long14 = Long14
+exports.Long15 = Long15
 exports.Long26 = Long26
 exports.Long28 = Long28
 exports.Long29 = Long29
